@@ -83,11 +83,13 @@ def write_options_parquet(
         group_data = group_df.drop("_year")
 
         if parquet_path.exists():
-            # Read existing data and merge
+            # Read existing data and remove old/synthetic rows for the dates being written
             existing_df = pl.read_parquet(parquet_path)
+            incoming_dates = set(group_data["trade_date"].unique().to_list())
+            existing_df = existing_df.filter(~pl.col("trade_date").is_in(incoming_dates))
             combined = pl.concat([existing_df, group_data])
 
-            # Deduplicate on (trade_date, expiry_date, strike, option_type)
+            # Deduplicate on (trade_date, expiry_date, strike, option_type) just in case
             combined = combined.unique(
                 subset=["trade_date", "expiry_date", "strike", "option_type"],
                 keep="last",
@@ -114,6 +116,9 @@ def write_underlying_parquet(
 ) -> dict[str, list[Path]]:
     """
     Write underlying/futures data to partitioned Parquet files.
+
+    Partitions by symbol/year. Appends/overwrites existing files by reading,
+    purging old rows for incoming trade_dates, and rewriting.
 
     Args:
         futures_df: DataFrame with the unified underlying/futures schema.
@@ -147,6 +152,8 @@ def write_underlying_parquet(
 
         if parquet_path.exists():
             existing_df = pl.read_parquet(parquet_path)
+            incoming_dates = set(group_data["trade_date"].unique().to_list())
+            existing_df = existing_df.filter(~pl.col("trade_date").is_in(incoming_dates))
             combined = pl.concat([existing_df, group_data])
             combined = combined.unique(
                 subset=["trade_date", "expiry_date"],
