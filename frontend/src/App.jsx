@@ -5,7 +5,15 @@ import ResultsDashboard from './components/ResultsDashboard'
 import SavedStrategies from './components/SavedStrategies'
 import './App.css'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
+const getApiBase = () => {
+  let url = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
+  url = url.replace(/\/+$/, '') // strip trailing slashes
+  if (!url.endsWith('/api')) {
+    url += '/api'
+  }
+  return url
+}
+const API_BASE = getApiBase()
 
 function App() {
   const [theme, setTheme] = useState(() => {
