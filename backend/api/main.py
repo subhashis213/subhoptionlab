@@ -67,6 +67,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.on_event("startup")
+async def startup_event():
+    """Ensure historical option Parquet data is populated on cloud container startup."""
+    try:
+        from data.queries import get_available_trade_dates
+        dates = get_available_trade_dates("BANKNIFTY")
+        if not dates or len(dates) < 10:
+            logger.info("Historical Parquet data missing or sparse on startup. Running auto-population across 2024-2026...")
+            from scripts.populate_history import main as populate_main
+            populate_main()
+            logger.info("Historical data auto-population complete!")
+    except Exception as e:
+        logger.error("Failed to auto-populate historical data on startup: %s", e)
+
+
 # ── Storage (`JSON Persistent Store`) ─────────────────────────────────────────
 STRATEGIES_FILE = DATA_DIR / "saved_strategies.json"
 _strategies: dict[str, dict] = {}

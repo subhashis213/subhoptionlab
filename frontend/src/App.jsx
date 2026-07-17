@@ -107,16 +107,25 @@ function App() {
           date_to: backtestConfig.date_to,
         }),
       })
+      if (!resp.ok) {
+        const errData = await resp.json().catch(() => ({}))
+        throw new Error(errData.detail || `Backend server error (${resp.status}). Verify VITE_API_URL settings.`)
+      }
       const { run_id } = await resp.json()
 
       let status = 'queued'
+      let attempts = 0
       while (status !== 'completed' && status !== 'failed') {
+        if (attempts++ > 40) {
+          throw new Error('Backtest simulation timed out (20s). Please verify your Render backend container is running and populated.')
+        }
         await new Promise(r => setTimeout(r, 500))
         const statusResp = await fetch(`${API_BASE}/backtest/${run_id}/status`)
+        if (!statusResp.ok) throw new Error('Lost connection to backtest service.')
         const statusData = await statusResp.json()
         status = statusData.status
         if (status === 'failed') {
-          throw new Error(statusData.error || 'Backtest failed')
+          throw new Error(statusData.error || 'Backtest simulation failed on cloud server')
         }
       }
 
