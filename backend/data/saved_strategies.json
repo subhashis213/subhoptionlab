@@ -1,0 +1,42 @@
+{
+  "3dfbd0eb": {
+    "id": "3dfbd0eb",
+    "name": "test1",
+    "config": {
+      "symbol": "BANKNIFTY",
+      "legs": [
+        {
+          "option_type": "CE",
+          "action": "SELL",
+          "strike_selection": "ATM",
+          "lots": 1,
+          "sl_percent": 25.0,
+          "target_percent": null,
+          "trailing_sl": null,
+          "move_sl_to_cost": false
+        },
+        {
+          "option_type": "PE",
+          "action": "SELL",
+          "strike_selection": "ATM",
+          "lots": 1,
+          "sl_percent": 25.0,
+          "target_percent": null,
+          "trailing_sl": null,
+          "move_sl_to_cost": false
+        }
+      ],
+      "entry_time": "09:56:00",
+      "exit_time": "14:50:00",
+      "expiry_mode": "same_day",
+      "use_futures_for_atm": false,
+      "strategy_sl_percent": null,
+      "strategy_target_percent": null,
+      "strategy_sl_points": null,
+      "strategy_target_points": null,
+      "protect_profits": null,
+      "mode": "intraday"
+    },
+    "created_at": "2026-07-18T03:02:50.588718"
+  }
+}
