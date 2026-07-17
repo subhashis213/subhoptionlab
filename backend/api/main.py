@@ -69,15 +69,29 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def startup_event():
-    """Ensure historical option Parquet data is populated on cloud container startup."""
+    """Ensure real bhavcopy CSVs and historical option Parquet data are synchronized on startup."""
     try:
         from data.queries import get_available_trade_dates
         dates = get_available_trade_dates("BANKNIFTY")
         if not dates or len(dates) < 10:
-            logger.info("Historical Parquet data missing or sparse on startup. Running auto-population across 2024-2026...")
+            logger.info("Parquet data missing or sparse on startup. Parsing real raw_bhavcopies CSVs first...")
+            from pathlib import Path
+            from config import DATA_DIR
+            raw_dir = DATA_DIR / "raw_bhavcopies"
+            if raw_dir.exists() and any(raw_dir.glob("*.csv")):
+                from data.parser import parse_all_bhavcopies
+                from data.parquet_store import write_options_parquet, write_underlying_parquet
+                options_df, futures_df = parse_all_bhavcopies(raw_dir)
+                if not options_df.is_empty():
+                    write_options_parquet(options_df)
+                if not futures_df.is_empty():
+                    write_underlying_parquet(futures_df)
+                logger.info("Real raw bhavcopies parsed successfully into Parquet store.")
+
+            logger.info("Running historical data auto-population across 2024-2026 for any missing dates...")
             from scripts.populate_history import main as populate_main
             populate_main()
-            logger.info("Historical data auto-population complete!")
+            logger.info("Historical data auto-population and synchronization complete!")
     except Exception as e:
         logger.error("Failed to auto-populate historical data on startup: %s", e)
 
