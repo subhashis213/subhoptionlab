@@ -69,11 +69,12 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def startup_event():
-    """Ensure real bhavcopy CSVs and historical option Parquet data are synchronized on startup."""
+    """Ensure real bhavcopy CSVs, historical data, and Upstox minute data are synchronized on startup."""
     try:
+        # Step 1: Parse real raw bhavcopy CSVs into Parquet (exact NSE prices)
         from config import RAW_DIR
         if RAW_DIR.exists() and any(RAW_DIR.glob("*.csv")):
-            logger.info("Parsing real raw_bhavcopies CSVs from %s into Parquet store...", RAW_DIR)
+            logger.info("Step 1/3: Parsing real raw_bhavcopies CSVs from %s...", RAW_DIR)
             from data.parser import parse_all_bhavcopies
             from data.parquet_store import write_options_parquet, write_underlying_parquet
             options_df, futures_df = parse_all_bhavcopies(RAW_DIR)
@@ -81,17 +82,28 @@ async def startup_event():
                 write_options_parquet(options_df)
             if not futures_df.is_empty():
                 write_underlying_parquet(futures_df)
-            logger.info("Real raw bhavcopies parsed and synchronized successfully into Parquet store.")
+            logger.info("Step 1/3 complete: Real bhavcopies parsed into Parquet store.")
 
+        # Step 2: Fill in any missing historical dates with synthetic data
         from data.queries import get_available_trade_dates
         dates = get_available_trade_dates("BANKNIFTY")
         if not dates or len(dates) < 50:
-            logger.info("Running historical data auto-population across 2024-2026 for any missing dates...")
+            logger.info("Step 2/3: Running historical data auto-population for missing dates...")
             from scripts.populate_history import main as populate_main
             populate_main()
-            logger.info("Historical data auto-population complete!")
+            logger.info("Step 2/3 complete: Historical data populated.")
+
+        # Step 3: Download real 1-minute Upstox candle data for all dates
+        logger.info("Step 3/3: Downloading real 1-minute Upstox candle data...")
+        try:
+            from scripts.download_all_minute_data import main as download_minute_main
+            download_minute_main()
+            logger.info("Step 3/3 complete: Minute data synchronized from Upstox.")
+        except Exception as e:
+            logger.warning("Step 3/3 skipped (minute data will use synthetic simulation): %s", e)
+
     except Exception as e:
-        logger.error("Failed to auto-populate historical data on startup: %s", e)
+        logger.error("Failed to auto-populate data on startup: %s", e)
 
 
 # ── Storage (`JSON Persistent Store`) ─────────────────────────────────────────
