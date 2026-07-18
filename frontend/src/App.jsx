@@ -124,8 +124,8 @@ function App() {
       let status = 'queued'
       let attempts = 0
       while (status !== 'completed' && status !== 'failed') {
-        if (attempts++ > 40) {
-          throw new Error('Backtest simulation timed out (20s). Please verify your Render backend container is running and populated.')
+        if (attempts++ > 240) {
+          throw new Error('Backtest simulation timed out (120s). Please verify your Render backend container is running and populated.')
         }
         await new Promise(r => setTimeout(r, 500))
         const statusResp = await fetch(`${API_BASE}/backtest/${run_id}/status`)
