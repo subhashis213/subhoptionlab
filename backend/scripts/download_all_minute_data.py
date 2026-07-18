@@ -33,8 +33,29 @@ def get_dates_needing_minute_data(symbol: str) -> list[tuple[date, float]]:
     """
     Find all (trade_date, atm_strike) pairs from daily OHLC parquet
     that don't already have minute parquet files.
+    Only includes dates that have real bhavcopy CSV data (not synthetic historical dates).
     """
     import polars as pl
+    from config import RAW_DIR
+
+    # First, determine which dates have REAL bhavcopy data
+    real_dates = set()
+    if RAW_DIR.exists():
+        for csv_file in RAW_DIR.glob("*.csv"):
+            # Extract date from filename like BhavCopy_NSE_FO_0_0_0_20260717_F_0000.csv
+            name = csv_file.stem
+            for part in name.split("_"):
+                if len(part) == 8 and part.isdigit():
+                    try:
+                        from datetime import date as dt_date
+                        d = dt_date(int(part[:4]), int(part[4:6]), int(part[6:8]))
+                        real_dates.add(d)
+                    except ValueError:
+                        pass
+
+    if not real_dates:
+        print(f"  No real bhavcopy dates found for minute download")
+        return []
 
     minute_dir = PARQUET_DIR / "minute" / symbol
     existing_minute_files = set()
@@ -43,7 +64,7 @@ def get_dates_needing_minute_data(symbol: str) -> list[tuple[date, float]]:
             existing_minute_files.add(f.stem.rsplit("_", 1)[0].rsplit("_", 1)[0])
             # e.g. "2026-07-17" from "2026-07-17_58500_CE.parquet"
 
-    # Read underlying data to get spot prices per date
+    # Read underlying data to get spot prices per date, but ONLY for real bhavcopy dates
     results = []
     underlying_dir = PARQUET_DIR / "underlying" / symbol
     if not underlying_dir.exists():
@@ -55,6 +76,9 @@ def get_dates_needing_minute_data(symbol: str) -> list[tuple[date, float]]:
             td = row["trade_date"]
             if isinstance(td, str):
                 td = date.fromisoformat(td)
+
+            if td not in real_dates:
+                continue  # Skip synthetic/historical dates
 
             date_str = td.isoformat()
             if date_str in existing_minute_files:
