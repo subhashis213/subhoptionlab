@@ -52,8 +52,14 @@ async def connect_to_mongo():
     global wallet_collection
 
     logger.info(f"Connecting to MongoDB (DB: {DB_NAME})...")
-    client = AsyncIOMotorClient(MONGODB_URI)
-    db = client[DB_NAME]
+    try:
+        client = AsyncIOMotorClient(MONGODB_URI, serverSelectionTimeoutMS=5000)
+        db = client[DB_NAME]
+        await db.command("ping")
+        logger.info("Successfully authenticated & connected to MongoDB Atlas!")
+    except Exception as e:
+        logger.error("MongoDB Atlas Authentication/Connection Failed: %s", e)
+        raise e
     
     broker_credentials_collection = db["broker_credentials"]
     live_strategies_collection = db["live_strategies"]
