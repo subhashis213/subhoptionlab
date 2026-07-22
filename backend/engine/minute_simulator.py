@@ -221,24 +221,12 @@ def simulate_intraday_leg(
     if entry_price <= 0:
         entry_price = open_p
 
-    # Calculate stop loss and target thresholds
+    # Calculate stop loss and target thresholds using shared rules
+    from engine.strategy_rules import calculate_sl_price, calculate_target_price, evaluate_leg_rules_tick
     action = leg_config.action.value
-    sl_percent = leg_config.sl_percent
-    target_percent = leg_config.target_percent
-
-    sl_price = None
-    if sl_percent is not None and sl_percent > 0:
-        if action == "SELL":
-            sl_price = entry_price * (1.0 + sl_percent / 100.0)
-        else:
-            sl_price = entry_price * max(0.01, 1.0 - sl_percent / 100.0)
-
-    target_price = None
-    if target_percent is not None and target_percent > 0:
-        if action == "SELL":
-            target_price = entry_price * max(0.01, 1.0 - target_percent / 100.0)
-        else:
-            target_price = entry_price * (1.0 + target_percent / 100.0)
+    
+    sl_price = calculate_sl_price(entry_price, leg_config.sl_percent or 0, action) if leg_config.sl_percent else None
+    target_price = calculate_target_price(entry_price, leg_config.target_percent or 0, action) if leg_config.target_percent else None
 
     # Step minute-by-minute from start_idx + 1 to end_idx
     exit_price = bars[end_idx]
@@ -247,27 +235,12 @@ def simulate_intraday_leg(
     for i in range(start_idx + 1, end_idx + 1):
         p = bars[i]
         
-        # Check SL
-        if sl_price is not None:
-            if action == "SELL" and p >= sl_price:
-                exit_price = sl_price
-                exit_reason = "leg_sl_hit"
-                break
-            elif action == "BUY" and p <= sl_price:
-                exit_price = sl_price
-                exit_reason = "leg_sl_hit"
-                break
-
-        # Check Target
-        if target_price is not None:
-            if action == "SELL" and p <= target_price:
-                exit_price = target_price
-                exit_reason = "leg_target_hit"
-                break
-            elif action == "BUY" and p >= target_price:
-                exit_price = target_price
-                exit_reason = "leg_target_hit"
-                break
+        # Evaluate rules using shared tick evaluator
+        triggered_reason = evaluate_leg_rules_tick(p, action, sl_price, target_price)
+        if triggered_reason:
+            exit_price = sl_price if triggered_reason == "leg_sl_hit" else target_price
+            exit_reason = triggered_reason
+            break
 
     # Calculate P&L
     if action == "BUY":

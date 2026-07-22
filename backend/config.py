@@ -56,6 +56,25 @@ UDIFF_CUTOVER_DATE = "2024-07-08"
 # NSE session URL (hit this first to get cookies)
 NSE_BASE_URL = "https://www.nseindia.com"
 
+# ── Lot Sizes (per underlying) ────────────────────────────────────────────────
+LOT_SIZES = {
+    "NIFTY": 75,
+    "BANKNIFTY": 15,
+    "FINNIFTY": 25,
+    "MIDCAPNIFTY": 50,
+}
+
+# ── Market Hours (IST) ────────────────────────────────────────────────────────
+MARKET_OPEN = "09:15"
+MARKET_CLOSE = "15:30"
+
+# ── Paper Trade Safety ─────────────────────────────────────────────────────────
+# Informational only — actual enforcement is structural in upstox_guard.py.
+# There is NO code path to Upstox's order placement endpoints anywhere.
+PAPER_TRADE_ONLY = True
+
+import os
+
 # ── Database ───────────────────────────────────────────────────────────────────
-MONGODB_URI = "mongodb://localhost:27017"
-MONGODB_DB_NAME = "options_backtester"
+MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
+MONGODB_DB_NAME = os.getenv("MONGODB_DB_NAME", "option_backtester")

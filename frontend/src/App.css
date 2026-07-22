@@ -1427,10 +1427,178 @@ select:focus, input:focus {
 }
 
 @media (max-width: 768px) {
-  .app-header { flex-direction: column; align-items: flex-start; gap: 1rem; }
-  .header-right { width: 100%; justify-content: space-between; }
-  .tab-nav { flex-wrap: wrap; }
+  .app-header { flex-direction: column; align-items: flex-start; gap: 1rem; padding: 1rem; }
+  .header-right { width: 100%; justify-content: flex-start; flex-wrap: wrap; gap: 0.75rem; }
+  .data-badge { white-space: normal; text-align: left; font-size: 0.75rem; }
+  .hide-on-mobile { display: none !important; }
+  .tab-nav { flex-wrap: wrap; padding: 0.75rem 1rem; justify-content: flex-start; }
+  .app-main { padding: 1rem; }
+  .builder-panel, .config-panel { padding: 1rem; }
+  .results-tabs { flex-wrap: wrap; width: 100%; justify-content: flex-start; margin-bottom: 1.5rem; }
+  .sub-tab { padding: 0.5rem 0.75rem; font-size: 0.85rem; flex: 1 1 auto; justify-content: center; text-align: center; }
   .form-row { grid-template-columns: 1fr; }
   .overview-grid { grid-template-columns: 1fr; }
   .strategies-grid { grid-template-columns: 1fr; }
+}
+
+/* ========================================================
+   Calendar Analytics & Weekday Heatmap Styles
+   ======================================================== */
+
+.calendar-analytics-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  animation: fadeIn 0.4s ease-out;
+}
+
+.calendar-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+}
+
+.calendar-filters {
+  display: flex;
+  gap: 1rem;
+}
+
+.calendar-select {
+  background: var(--bg-input);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.calendar-select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.calendar-summary {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-main);
+  letter-spacing: 0.5px;
+}
+
+.calendar-grid-wrapper {
+  overflow-x: auto;
+  padding: 1.5rem;
+}
+
+.calendar-grid {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 6px;
+  min-width: 600px;
+}
+
+.calendar-grid th {
+  padding: 0.75rem;
+  text-align: center;
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.cal-cell {
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.75rem;
+  height: 85px;
+  vertical-align: top;
+  position: relative;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  width: calc(100% / 7);
+}
+
+.cal-cell:not(.empty):not(.cal-no-trade):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  z-index: 10;
+}
+
+.cal-cell.empty {
+  background: transparent;
+  border-color: transparent;
+}
+
+.cal-cell.cal-no-trade {
+  opacity: 0.5;
+}
+
+.cal-cell.cal-profit {
+  background: var(--profit-bg);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.cal-cell.cal-loss {
+  background: var(--loss-bg);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.cal-cell.cal-neutral {
+  background: rgba(148, 163, 184, 0.1);
+  border-color: rgba(148, 163, 184, 0.3);
+}
+
+.cal-date {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.cal-profit .cal-date, .cal-loss .cal-date {
+  color: var(--text-main);
+}
+
+.cal-pnl {
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-align: center;
+  margin-top: auto;
+}
+
+.weekday-analytics-wrapper {
+  padding: 1.5rem;
+}
+
+.weekday-table th {
+  background: var(--bg-input);
+}
+
+.weekday-table td {
+  font-size: 1rem;
+}
+
+@media (max-width: 768px) {
+  .calendar-toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  .cal-cell {
+    height: 70px;
+    padding: 0.4rem;
+  }
+  .cal-date {
+    font-size: 0.75rem;
+  }
+  .cal-pnl {
+    font-size: 0.8rem;
+  }
 }

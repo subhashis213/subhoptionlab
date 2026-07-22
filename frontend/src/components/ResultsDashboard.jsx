@@ -8,6 +8,7 @@ import {
   Tooltip,
   CartesianGrid,
 } from 'recharts'
+import CalendarAnalytics from './CalendarAnalytics'
 
 export default function ResultsDashboard({ results }) {
   const [activeTab, setActiveTab] = useState('overview')
@@ -83,6 +84,12 @@ export default function ResultsDashboard({ results }) {
           onClick={() => setActiveTab('daily')}
         >
           <span>📋</span> Daily Execution Logs <span className="tab-count">{daily_results.length}</span>
+        </button>
+        <button
+          className={`sub-tab ${activeTab === 'calendar' ? 'active' : ''}`}
+          onClick={() => setActiveTab('calendar')}
+        >
+          <span>📅</span> Calendar Analytics
         </button>
       </div>
 
@@ -354,6 +361,11 @@ export default function ResultsDashboard({ results }) {
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* Tab 4: Calendar Analytics */}
+      {activeTab === 'calendar' && (
+        <CalendarAnalytics daily_results={daily_results} fmt={fmt} />
       )}
     </div>
   )

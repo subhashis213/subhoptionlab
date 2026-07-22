@@ -1,0 +1,270 @@
+.live-monitor-container {
+  padding: 20px;
+}
+
+.live-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
+  background: var(--card-bg, #1e1e2d);
+  padding: 15px 25px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color, #2b2b40);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+.live-header h2 {
+  margin: 0;
+  color: white;
+}
+
+.header-right-actions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.wallet-widget {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color, #2b2b40);
+  border-radius: 8px;
+  padding: 8px 15px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.wallet-label {
+  font-size: 0.8rem;
+  color: var(--text-muted, #8e8e9f);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.wallet-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.wallet-unrealized {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+}
+
+.wallet-unrealized.profit {
+  color: #2ecc71;
+}
+
+.wallet-unrealized.loss {
+  color: #e74c3c;
+}
+
+.wallet-amount {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.wallet-amount.profit {
+  color: #2ecc71;
+}
+
+.wallet-amount.loss {
+  color: #e74c3c;
+}
+
+.btn-wallet-reset {
+  background: transparent;
+  color: #8e8e9f;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0 5px;
+  transition: color 0.2s;
+}
+
+.btn-wallet-reset:hover {
+  color: #f39c12;
+}
+
+[data-theme="light"] .wallet-widget {
+  background: #f8f9fa;
+  border-color: #e0e0e0;
+}
+
+[data-theme="light"] .wallet-label {
+  color: #7f8c8d;
+}
+
+.btn-panic {
+  background: #c0392b;
+  color: white;
+  border: 2px solid #e74c3c;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 800;
+  font-size: 1rem;
+  cursor: pointer;
+  box-shadow: 0 0 15px rgba(231, 76, 60, 0.4);
+  transition: all 0.2s;
+}
+
+.btn-panic:hover:not(:disabled) {
+  background: #e74c3c;
+  box-shadow: 0 0 25px rgba(231, 76, 60, 0.6);
+  transform: scale(1.02);
+}
+
+.btn-panic:disabled {
+  background: #7f8c8d;
+  border-color: #95a5a6;
+  box-shadow: none;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.monitor-dashboard {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 30px;
+}
+
+.strategies-list-container h3 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  color: var(--text-primary, #ffffff);
+}
+
+.deployed-strategies-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.deployed-card {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-color, #2b2b40);
+  border-radius: 10px;
+  padding: 15px;
+}
+
+.deployed-card.paper {
+  border-left: 4px solid #3498db;
+}
+
+.deployed-card.live {
+  border-left: 4px solid #e74c3c;
+}
+
+.card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.card-top h4 {
+  margin: 0;
+  color: var(--text-primary, #ffffff);
+}
+
+.status-badge {
+  font-size: 0.7rem;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: bold;
+}
+
+.status-badge.active {
+  background: rgba(46, 204, 113, 0.2);
+  color: #2ecc71;
+}
+
+.status-badge.killed, .status-badge.stopped {
+  background: rgba(231, 76, 60, 0.2);
+  color: #e74c3c;
+}
+
+.card-details p {
+  margin: 5px 0;
+  font-size: 0.85rem;
+  color: var(--text-muted, #8e8e9f);
+}
+
+.btn-square-off {
+  width: 100%;
+  margin-top: 15px;
+  background: transparent;
+  color: #e67e22;
+  border: 1px solid #e67e22;
+  padding: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.btn-square-off:hover {
+  background: rgba(230, 126, 34, 0.1);
+}
+
+@media (max-width: 1200px) {
+  .monitor-dashboard {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Status Badges */
+.status-badge.waiting {
+  background: rgba(241, 196, 15, 0.2);
+  color: #f1c40f;
+  border: 1px solid rgba(241, 196, 15, 0.5);
+}
+
+/* Enhanced Light Mode contrast */
+[data-theme="light"] .strategies-list-container h3 {
+  color: #2c3e50;
+  background: transparent;
+}
+
+[data-theme="light"] .deployed-card {
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+}
+
+[data-theme="light"] .deployed-card .card-top h4 {
+  color: #2c3e50;
+  font-weight: 700;
+}
+
+[data-theme="light"] .deployed-card .card-details p,
+[data-theme="light"] .deployed-card .card-details strong {
+  color: #555555;
+}
+
+[data-theme="light"] .trigger-time strong {
+  color: #27ae60;
+}
+
+[data-theme="light"] .btn-square-off {
+  background: #fff0eb;
+  border-color: #ffaa85;
+  color: #d35400;
+}
+
+[data-theme="light"] .btn-square-off:hover {
+  background: #ffe3d8;
+}
+
+/* Fix main Live Monitor Header in Light Mode */
+[data-theme="light"] .live-header {
+  background: #ffffff;
+  border-color: #e0e0e0;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+}
+
+[data-theme="light"] .live-header h2 {
+  color: #2c3e50;
+}

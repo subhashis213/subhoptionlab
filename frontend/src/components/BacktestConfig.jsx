@@ -5,8 +5,24 @@ export default function BacktestConfig({ strategy, setStrategy, config, setConfi
   const [isSaving, setIsSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
 
+  const getMaxDate = () => {
+    if (dataInfo?.to_date) return dataInfo.to_date
+    if (dataInfo?.options) {
+      const sym = strategy?.symbol || 'BANKNIFTY'
+      const opt = dataInfo.options[sym] || Object.values(dataInfo.options)[0]
+      if (opt?.max_date) return opt.max_date
+    }
+    return '2026-07-21'
+  }
+
+  const maxDate = getMaxDate()
+
   const datePresets = [
-    { label: '★ Latest Data (Jul 2026 - Today)', from: '2026-07-01', to: '2026-07-17' },
+    { 
+      label: '★ Latest Data (Jul 2026 - Today)', 
+      from: '2026-07-01', 
+      to: maxDate
+    },
     { label: 'Jul 2024 Benchmark', from: '2024-07-15', to: '2024-07-19' },
     { label: '1W', days: 7 },
     { label: '1M', days: 30 },
@@ -20,7 +36,7 @@ export default function BacktestConfig({ strategy, setStrategy, config, setConfi
       setConfig({ ...config, date_from: preset.from, date_to: preset.to })
       return
     }
-    const maxDateStr = (dataInfo && dataInfo.options && Object.values(dataInfo.options)[0]?.max_date) || '2026-07-17'
+    const maxDateStr = getMaxDate()
     const to = new Date(maxDateStr)
     const from = new Date(to.getTime() - preset.days * 24 * 60 * 60 * 1000)
     setConfig({

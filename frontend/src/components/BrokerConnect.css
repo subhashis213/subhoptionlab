@@ -1,0 +1,130 @@
+.broker-connect-container {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 30px;
+  background: var(--card-bg, #1e1e2d);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  color: var(--text-primary, #ffffff);
+}
+
+.broker-desc {
+  color: var(--text-muted, #8e8e9f);
+  margin-bottom: 25px;
+}
+
+.broker-status-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color, #2b2b40);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 25px;
+}
+
+.broker-status-card h3 {
+  margin-top: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.status-badge {
+  font-size: 0.75rem;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-weight: 700;
+}
+
+.status-badge.active {
+  background: rgba(46, 204, 113, 0.2);
+  color: #2ecc71;
+  border: 1px solid rgba(46, 204, 113, 0.4);
+}
+
+.status-badge.inactive {
+  background: rgba(231, 76, 60, 0.2);
+  color: #e74c3c;
+  border: 1px solid rgba(231, 76, 60, 0.4);
+}
+
+.active-connection {
+  margin-top: 15px;
+}
+
+.active-connection p {
+  margin: 8px 0;
+  font-size: 0.9rem;
+}
+
+.broker-form .form-group {
+  margin-bottom: 20px;
+}
+
+.broker-form label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: var(--text-primary, #ffffff);
+}
+
+.broker-form textarea,
+.broker-form input {
+  width: 100%;
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color, #2b2b40);
+  background: rgba(0, 0, 0, 0.2);
+  color: white;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+}
+
+.broker-form textarea:focus,
+.broker-form input:focus {
+  outline: none;
+  border-color: #3498db;
+}
+
+.btn-primary {
+  background: #3498db;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  transition: all 0.2s;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #2980b9;
+}
+
+.btn-primary:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.btn-danger {
+  background: transparent;
+  color: #e74c3c;
+  border: 1px solid #e74c3c;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 15px;
+  transition: all 0.2s;
+}
+
+.btn-danger:hover {
+  background: rgba(231, 76, 60, 0.1);
+}
+
+.status-message {
+  margin-top: 15px;
+  text-align: center;
+  font-weight: 500;
+  color: #f1c40f;
+}

@@ -1,256 +1,65 @@
-import { useState, useEffect } from 'react'
-import StrategyBuilder from './components/StrategyBuilder'
-import BacktestConfig from './components/BacktestConfig'
-import ResultsDashboard from './components/ResultsDashboard'
-import SavedStrategies from './components/SavedStrategies'
-import './App.css'
+import { Routes, Route, Navigate } from 'react-router-dom'
+import { AuthProvider } from './context/AuthContext'
+import ProtectedRoute from './components/ProtectedRoute'
+import Layout from './components/Layout'
 
-const getApiBase = () => {
-  let url = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
-  url = url.replace(/\/+$/, '') // strip trailing slashes
-  if (!url.endsWith('/api')) {
-    url += '/api'
-  }
-  return url
-}
-const API_BASE = getApiBase()
+// Pages
+import LoginPage from './pages/LoginPage'
+import HomePage from './pages/user/HomePage'
+import StrategyList from './pages/user/StrategyList'
+import StrategyBuilder from './pages/user/StrategyBuilder'
+import StrategyDetail from './pages/user/StrategyDetail'
+import WalletPage from './pages/user/WalletPage'
+import HistoryPage from './pages/user/HistoryPage'
+import ProfilePage from './pages/user/ProfilePage'
+import TradeHistoryPage from './pages/user/TradeHistoryPage'
+import MarketsPage from './pages/user/MarketsPage'
 
-function App() {
-  const [theme, setTheme] = useState(() => {
-    return localStorage.getItem('opti_theme') || 'dark'
-  })
-  const [activeTab, setActiveTab] = useState('builder')
-  const [strategy, setStrategy] = useState({
-    symbol: 'BANKNIFTY',
-    legs: [],
-    entry_time: '09:56:00',
-    exit_time: '14:50:00',
-    expiry_mode: 'same_day',
-    use_futures_for_atm: false,
-    strategy_sl_points: null,
-    strategy_target_points: null,
-    protect_profits: null,
-    mode: 'intraday',
-  })
-  const [backtestConfig, setBacktestConfig] = useState({
-    date_from: '2026-07-01',
-    date_to: '2026-07-17',
-  })
-  const [results, setResults] = useState(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
-  const [dataInfo, setDataInfo] = useState(null)
-  const [refreshSavedCounter, setRefreshSavedCounter] = useState(0)
+import AdminDashboard from './pages/admin/AdminDashboard'
+import AdminUsers from './pages/admin/AdminUsers'
+import AdminGlobal from './pages/admin/AdminGlobal'
 
-  // Apply dark/light theme
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme)
-    localStorage.setItem('opti_theme', theme)
-  }, [theme])
+import Backtester from './pages/user/Backtester'
 
-  // Fetch data availability on mount
-  useEffect(() => {
-    fetch(`${API_BASE}/data/stats`)
-      .then(r => r.json())
-      .then(info => {
-        setDataInfo(info)
-        const firstOpt = info?.options && Object.values(info.options)[0]
-        if (firstOpt && firstOpt.max_date) {
-          setBacktestConfig({
-            date_from: '2026-07-01',
-            date_to: firstOpt.max_date,
-          })
-        }
-      })
-      .catch(() => {})
-  }, [])
-
-  const toggleTheme = () => {
-    setTheme(prev => prev === 'dark' ? 'light' : 'dark')
-  }
-
-  const handleSaveStrategy = async (strategyName) => {
-    if (!strategyName || strategyName.trim() === '') {
-      alert('Please enter a name for your strategy')
-      return false
-    }
-    if (strategy.legs.length === 0) {
-      alert('Add at least one position before saving the strategy')
-      return false
-    }
-    try {
-      const resp = await fetch(`${API_BASE}/strategies`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: strategyName.trim(),
-          config: strategy,
-        }),
-      })
-      if (!resp.ok) throw new Error('Failed to save strategy')
-      setRefreshSavedCounter(c => c + 1)
-      return true
-    } catch (e) {
-      alert(`Error saving strategy: ${e.message}`)
-      return false
-    }
-  }
-
-  const runBacktest = async () => {
-    if (strategy.legs.length === 0) {
-      setError('Add at least one position to the strategy before running backtest')
-      return
-    }
-    setLoading(true)
-    setError(null)
-    setResults(null)
-
-    try {
-      const resp = await fetch(`${API_BASE}/backtest/run`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          strategy_config: strategy,
-          date_from: backtestConfig.date_from,
-          date_to: backtestConfig.date_to,
-        }),
-      })
-      if (!resp.ok) {
-        const errData = await resp.json().catch(() => ({}))
-        throw new Error(errData.detail || `Backend server error (${resp.status}). Verify VITE_API_URL settings.`)
-      }
-      const { run_id } = await resp.json()
-
-      let status = 'queued'
-      let attempts = 0
-      while (status !== 'completed' && status !== 'failed') {
-        if (attempts++ > 240) {
-          throw new Error('Backtest simulation timed out (120s). Please verify your Render backend container is running and populated.')
-        }
-        await new Promise(r => setTimeout(r, 500))
-        const statusResp = await fetch(`${API_BASE}/backtest/${run_id}/status`)
-        if (!statusResp.ok) throw new Error('Lost connection to backtest service.')
-        const statusData = await statusResp.json()
-        status = statusData.status
-        if (status === 'failed') {
-          throw new Error(statusData.error || 'Backtest simulation failed on cloud server')
-        }
-      }
-
-      const resultsResp = await fetch(`${API_BASE}/backtest/${run_id}/results`)
-      const resultsData = await resultsResp.json()
-      setResults(resultsData)
-      setActiveTab('results')
-    } catch (e) {
-      setError(e.message || 'Failed to run backtest')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const loadStrategy = (config) => {
-    setStrategy(config)
-    setActiveTab('builder')
-  }
-
+export default function App() {
   return (
-    <div className="app">
-      <header className="app-header">
-        <div className="header-left">
-          <div className="logo">
-            <span className="logo-icon swastik" title="Shubh Muhurt">卐</span>
-            <h1 className="brand-title">शुभमुहूर्त</h1>
-          </div>
-          <p className="tagline">Options Strategy Backtester & Precision Analytics</p>
-        </div>
-        <div className="header-right">
-          <button className="theme-switch-btn" onClick={toggleTheme} title="Switch Dark / Light Theme">
-            {theme === 'dark' ? '☀️ Light Mode' : '🌙 Dark Mode'}
-          </button>
-          {dataInfo && dataInfo.options && Object.keys(dataInfo.options).length > 0 && (
-            <div className="data-badge">
-              <span className="badge-dot"></span>
-              Data loaded: {Object.keys(dataInfo.options).join(', ')}
-            </div>
-          )}
-        </div>
-      </header>
+    <AuthProvider>
+      <Routes>
+        {/* Public Route */}
+        <Route path="/login" element={<LoginPage />} />
 
-      <nav className="tab-nav">
-        <button
-          className={`tab-btn ${activeTab === 'builder' ? 'active' : ''}`}
-          onClick={() => setActiveTab('builder')}
-        >
-          <span className="tab-icon">⚙️</span> Strategy Builder
-        </button>
-        <button
-          className={`tab-btn ${activeTab === 'results' ? 'active' : ''}`}
-          onClick={() => setActiveTab('results')}
-          disabled={!results}
-        >
-          <span className="tab-icon">📊</span> Results Dashboard
-        </button>
-        <button
-          className={`tab-btn ${activeTab === 'saved' ? 'active' : ''}`}
-          onClick={() => setActiveTab('saved')}
-        >
-          <span className="tab-icon">💾</span> Saved Strategies
-        </button>
-      </nav>
+        {/* Redirect root based on auth */}
+        <Route path="/" element={<Navigate to="/home" replace />} />
 
-      <main className="app-main">
-        {error && (
-          <div className="error-banner">
-            <span>⚠️ {error}</span>
-            <button onClick={() => setError(null)}>✕</button>
-          </div>
-        )}
+        {/* User Routes (with BottomNav) */}
+        <Route element={<ProtectedRoute requiredRole="user"><Layout /></ProtectedRoute>}>
+          <Route path="/home" element={<HomePage />} />
+          <Route path="/strategies" element={<StrategyList />} />
+          <Route path="/wallet" element={<WalletPage />} />
+          <Route path="/history" element={<HistoryPage />} />
+          <Route path="/markets" element={<MarketsPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+        </Route>
 
-        {activeTab === 'builder' && (
-          <div className="builder-layout">
-            <div className="builder-panel">
-              <StrategyBuilder
-                strategy={strategy}
-                setStrategy={setStrategy}
-                onSaveStrategy={handleSaveStrategy}
-              />
-            </div>
-            <div className="config-panel">
-              <BacktestConfig
-                strategy={strategy}
-                setStrategy={setStrategy}
-                config={backtestConfig}
-                setConfig={setBacktestConfig}
-                onRun={runBacktest}
-                loading={loading}
-                dataInfo={dataInfo}
-                onSaveStrategy={handleSaveStrategy}
-              />
-            </div>
-          </div>
-        )}
+        {/* User Routes (No BottomNav) */}
+        <Route element={<ProtectedRoute requiredRole="user" />}>
+          <Route path="/strategies/new" element={<StrategyBuilder />} />
+          <Route path="/strategies/:id" element={<StrategyDetail />} />
+          <Route path="/trade-history" element={<TradeHistoryPage />} />
+          <Route path="/backtester" element={<Backtester />} />
+        </Route>
 
-        {activeTab === 'results' && results && (
-          <ResultsDashboard results={results} />
-        )}
+        {/* Admin Routes (with BottomNav) */}
+        <Route element={<ProtectedRoute requiredRole="admin"><Layout /></ProtectedRoute>}>
+          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/admin/users" element={<AdminUsers />} />
+          <Route path="/admin/global" element={<AdminGlobal />} />
+          <Route path="/admin/profile" element={<ProfilePage />} />
+        </Route>
 
-        {activeTab === 'saved' && (
-          <SavedStrategies
-            onLoad={loadStrategy}
-            apiBase={API_BASE}
-            refreshCounter={refreshSavedCounter}
-          />
-        )}
-      </main>
-
-      {loading && (
-        <div className="loading-overlay">
-          <div className="spinner"></div>
-          <p style={{ color: '#fff', fontWeight: 600, fontSize: '1.1rem' }}>Running exact 1-minute tick simulation...</p>
-        </div>
-      )}
-    </div>
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </AuthProvider>
   )
 }
-
-export default App

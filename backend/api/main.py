@@ -69,8 +69,25 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def startup_event():
-    """Ensure real bhavcopy CSVs and historical data are ready, then background-download Upstox minute data."""
+    """Ensure real bhavcopy CSVs and historical data are ready, then background-download Upstox minute data. Also connect to Mongo for live trading and paper trading."""
     import threading
+    from live.db import connect_to_mongo
+    from live.feed import feed_manager
+    from live.runner import runner_service
+    await connect_to_mongo()
+    feed_manager.start()
+    runner_service.start()
+
+    # ── Paper Trading Platform Init ────────────────────────────────────────────
+    from live.db import db as mongo_db
+    from papertrade.db import init_papertrade_collections
+    from papertrade.monitor import monitor_service
+    from papertrade.websocket_manager import ws_manager
+
+    await init_papertrade_collections(mongo_db)
+    monitor_service.set_ws_manager(ws_manager)
+    monitor_service.start()
+    logger.info("Paper trading platform initialized (monitor + WebSocket manager).")
 
     try:
         # Step 1: Parse real raw bhavcopy CSVs into Parquet (exact NSE prices) — fast
@@ -98,19 +115,27 @@ async def startup_event():
     except Exception as e:
         logger.error("Failed to auto-populate data on startup: %s", e)
 
-    # Step 3 (background): Download real 1-minute Upstox candle data without blocking the server
-    def _download_minute_data_background():
-        try:
-            logger.info("Background: Starting Upstox 1-minute candle download...")
-            from scripts.download_all_minute_data import main as download_minute_main
-            download_minute_main()
-            logger.info("Background: Upstox minute data download complete!")
-        except Exception as e:
-            logger.warning("Background minute download skipped: %s", e)
+    # Step 3 (background): Auto-sync missing daily NSE bhavcopies & Upstox 1-minute candle data up to today
+    try:
+        from data.auto_sync import start_auto_sync_background
+        start_auto_sync_background()
+        logger.info("Server ready. Market data auto-sync started in background...")
+    except Exception as e:
+        logger.warning("Background market data auto-sync failed to start: %s", e)
 
-    thread = threading.Thread(target=_download_minute_data_background, daemon=True)
-    thread.start()
-    logger.info("Server ready. Upstox minute data downloading in background...")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Clean up resources."""
+    from live.db import close_mongo_connection
+    from live.feed import feed_manager
+    from live.runner import runner_service
+    from papertrade.monitor import monitor_service
+    
+    monitor_service.stop()
+    runner_service.stop()
+    feed_manager.stop()
+    await close_mongo_connection()
 
 
 # ── Storage (`JSON Persistent Store`) ─────────────────────────────────────────
@@ -398,6 +423,76 @@ async def health():
         "symbols": SYMBOLS,
         "data_stats": stats,
     }
+
+
+# ── Live Trading Routers (existing backtester) ─────────────────────────────────
+from live.broker_router import router as broker_router
+from live.live_router import router as live_router
+app.include_router(broker_router)
+app.include_router(live_router)
+
+# ── Paper Trading Platform Routers ─────────────────────────────────────────────
+from papertrade.router_auth import router as pt_auth_router
+from papertrade.router_admin import router as pt_admin_router
+from papertrade.router_strategy import router as pt_strategy_router
+from papertrade.router_wallet import router as pt_wallet_router
+from papertrade.router_history import router as pt_history_router
+from papertrade.router_markets import router as pt_markets_router
+app.include_router(pt_auth_router)
+app.include_router(pt_admin_router)
+app.include_router(pt_strategy_router)
+app.include_router(pt_wallet_router)
+app.include_router(pt_history_router)
+app.include_router(pt_markets_router)
+
+
+# ── Paper Trading WebSocket Endpoint ───────────────────────────────────────────
+from fastapi import WebSocket as WS, WebSocketDisconnect as WSDisconnect
+import json as _json
+
+@app.websocket("/ws/pt/{token}")
+async def papertrade_websocket(websocket: WS, token: str):
+    """WebSocket endpoint for real-time paper trading updates.
+    Connect with JWT token in the URL path."""
+    from papertrade.auth import decode_token
+    from papertrade.websocket_manager import ws_manager
+    from papertrade import db as pt_db
+
+    try:
+        payload = decode_token(token)
+        user_id = payload.get("sub")
+        role = payload.get("role", "user")
+
+        if not user_id:
+            await websocket.close(code=4001, reason="Invalid token")
+            return
+
+        user = await pt_db.users_collection.find_one({"_id": user_id})
+        if not user or user.get("status") == "blocked":
+            await websocket.close(code=4003, reason="User not found or blocked")
+            return
+
+        is_admin = role == "admin"
+        await ws_manager.connect(user_id, websocket, is_admin=is_admin)
+
+        try:
+            while True:
+                data = await websocket.receive_text()
+                # Client can send pings or subscription requests
+                try:
+                    msg = _json.loads(data)
+                    if msg.get("type") == "ping":
+                        await websocket.send_json({"type": "pong"})
+                except Exception:
+                    pass
+        except WSDisconnect:
+            ws_manager.disconnect(user_id, websocket)
+
+    except Exception as e:
+        try:
+            await websocket.close(code=4001, reason=str(e))
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":

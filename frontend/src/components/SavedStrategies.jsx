@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 
-export default function SavedStrategies({ onLoad, apiBase, refreshCounter }) {
+export default function SavedStrategies({ onLoad, apiBase, refreshCounter, setActiveTab }) {
   const [strategies, setStrategies] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -86,8 +86,7 @@ export default function SavedStrategies({ onLoad, apiBase, refreshCounter }) {
                 ))}
               </div>
 
-              <div className="card-footer">
-                <span>Created: {new Date(item.created_at).toLocaleDateString()}</span>
+              <div className="card-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span className="load-prompt">Click to load →</span>
               </div>
             </div>
