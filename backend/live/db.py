@@ -2,7 +2,9 @@
 MongoDB connection initialization for Live/Paper trading.
 """
 import os
+import re
 import logging
+import urllib.parse
 from motor.motor_asyncio import AsyncIOMotorClient
 from dotenv import load_dotenv
 
@@ -10,7 +12,23 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
+def format_mongo_uri(uri: str) -> str:
+    """Safely format and URL-encode username and password in MongoDB URI according to RFC 3986."""
+    if not uri or not uri.startswith("mongodb"):
+        return uri
+    pattern = r'^(mongodb(?:\+srv)?://)([^:]+):(.+)@([^/@\?]+(?::\d+)?(?:/.*)?)$'
+    match = re.match(pattern, uri)
+    if match:
+        prefix, user, password, rest = match.groups()
+        unquoted_user = urllib.parse.unquote(user)
+        unquoted_password = urllib.parse.unquote(password)
+        quoted_user = urllib.parse.quote_plus(unquoted_user)
+        quoted_password = urllib.parse.quote_plus(unquoted_password)
+        return f"{prefix}{quoted_user}:{quoted_password}@{rest}"
+    return uri
+
+RAW_MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
+MONGODB_URI = format_mongo_uri(RAW_MONGODB_URI)
 DB_NAME = os.getenv("MONGODB_DB_NAME", "option_backtester")
 
 client: AsyncIOMotorClient = None
@@ -33,7 +51,7 @@ async def connect_to_mongo():
     global live_positions_collection
     global wallet_collection
 
-    logger.info(f"Connecting to MongoDB at {MONGODB_URI} (DB: {DB_NAME})...")
+    logger.info(f"Connecting to MongoDB (DB: {DB_NAME})...")
     client = AsyncIOMotorClient(MONGODB_URI)
     db = client[DB_NAME]
     
