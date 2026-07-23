@@ -48,10 +48,16 @@ export async function apiFetch(path, options = {}) {
 
   let response
   try {
-    response = await fetch(`${API_BASE}${path}`, {
+    const fetchOptions = {
       ...options,
       headers,
-    })
+    }
+    // Prevent browser caching for GET requests
+    if (!options.method || options.method.toUpperCase() === 'GET') {
+      fetchOptions.cache = 'no-store'
+    }
+
+    response = await fetch(`${API_BASE}${path}`, fetchOptions)
   } catch (netErr) {
     throw new Error('Network error: Server is starting up or unreachable. Please try again in a few seconds.')
   }
@@ -148,9 +154,11 @@ export const marketsApi = {
     apiFetch(`/api/pt/markets/option-chain?underlying=${underlying}&expiry=${expiry}`),
 }
 
-// WebSocket
 export function connectWebSocket(token, onMessage) {
-  let wsBase = API_BASE ? API_BASE.replace(/^http/, 'ws') : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`
+  // Always use the real backend URL for WebSockets since Vercel cannot proxy WebSockets
+  const rawBackendUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+  let wsBase = rawBackendUrl.replace(/\/+$/, '').replace(/^http/, 'ws');
+  
   const ws = new WebSocket(`${wsBase}/ws/pt/${token}`)
 
   ws.onopen = () => {

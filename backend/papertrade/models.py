@@ -86,7 +86,7 @@ class WalletResponse(BaseModel):
     net_worth: float = 0.0
     used_margin: float = 0.0
     available_margin: float = 0.0
-    last_updated: datetime
+    last_updated: Optional[datetime] = None
 
 
 # ── Chip Transactions ──────────────────────────────────────────────────────────
