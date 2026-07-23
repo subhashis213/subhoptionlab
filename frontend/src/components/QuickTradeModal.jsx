@@ -63,7 +63,7 @@ export default function QuickTradeModal({ tradeDetails, onClose, onExecute }) {
       onClose()
       navigate(`/strategies/${res.strategy_id}`)
     } catch (err) {
-      setError('Failed to execute paper trade')
+      setError(err.message || 'Failed to execute paper trade')
       console.error(err)
       setLoading(false)
     }

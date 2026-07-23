@@ -228,6 +228,18 @@ async def activate_strategy(strategy_id: str, user: dict = Depends(require_user)
     })
     if not strategy:
         raise HTTPException(404, "Strategy not found")
+        
+    import pytz
+    ist = pytz.timezone('Asia/Kolkata')
+    now = datetime.now(ist)
+    if now.weekday() >= 5:
+        raise HTTPException(400, "Market is closed on weekends")
+    current_time = now.time()
+    from datetime import time
+    market_open = time(9, 15)
+    market_close = time(15, 30)
+    if current_time < market_open or current_time > market_close:
+        raise HTTPException(400, "Market is closed")
 
     if strategy["status"] != "draft":
         raise HTTPException(400, f"Strategy is already {strategy['status']}")
@@ -286,6 +298,28 @@ async def activate_strategy(strategy_id: str, user: dict = Depends(require_user)
     # Collect all instrument keys and batch-fetch LTP
     instrument_keys = [leg["instrument_key"] for leg in legs if leg.get("instrument_key")]
     ltp_data = await fetch_ltp(instrument_keys) if instrument_keys else {}
+
+    # Calculate Margin required
+    total_margin = 0.0
+    for leg in legs:
+        inst_key = leg.get("instrument_key", "")
+        ltp = ltp_data.get(inst_key)
+        if ltp is None or ltp <= 0:
+            ltp = 0.0
+        qty_lots = leg.get("qty", 1)
+        lot_size = LOT_SIZES.get(leg.get("symbol", strategy.get("underlying")), 15)
+        total_qty = qty_lots * lot_size
+        
+        if leg["side"] == "BUY":
+            total_margin += ltp * total_qty
+        else:
+            total_margin += 150000 * qty_lots
+
+    # Check Wallet Balance
+    wallet = await db.wallets_collection.find_one({"user_id": user["_id"]})
+    balance = wallet.get("virtual_chips_balance", 0.0) if wallet else 0.0
+    if balance < total_margin:
+        raise HTTPException(400, f"Insufficient funds. Required: ₹{total_margin:,.2f}, Available: ₹{balance:,.2f}")
 
     # Update each leg with entry price and SL/target calculations
     for leg in legs:
