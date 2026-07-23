@@ -5,18 +5,18 @@ import StrategyBuilder from '../../components/StrategyBuilder'
 import BacktestConfig from '../../components/BacktestConfig'
 import ResultsDashboard from '../../components/ResultsDashboard'
 import SavedStrategies from '../../components/SavedStrategies'
-import { API_BASE } from '../../api/client'
+import { API_BASE as CLIENT_API_BASE } from '../../api/client'
 import '../../App.css'
 
-const getApiBase = () => {
-  let url = API_BASE
-  url = url.replace(/\/+$/, '') + '/api'; // strip trailing slashes
+const getApiUrl = () => {
+  let url = CLIENT_API_BASE || ''
+  url = url.replace(/\/+$/, '')
   if (!url.endsWith('/api')) {
     url += '/api'
   }
   return url
 }
-const API_BASE = getApiBase()
+const BACKEND_API = getApiUrl()
 
 function Backtester() {
   const navigate = useNavigate()
@@ -54,7 +54,7 @@ function Backtester() {
 
   // Fetch data availability on mount
   useEffect(() => {
-    fetch(`${API_BASE}/data/stats`)
+    fetch(`${BACKEND_API}/data/stats`)
       .then(r => r.json())
       .then(info => {
         setDataInfo(info)
@@ -83,7 +83,7 @@ function Backtester() {
       return false
     }
     try {
-      const resp = await fetch(`${API_BASE}/strategies`, {
+      const resp = await fetch(`${BACKEND_API}/strategies`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -110,7 +110,7 @@ function Backtester() {
     setResults(null)
 
     try {
-      const resp = await fetch(`${API_BASE}/backtest/run`, {
+      const resp = await fetch(`${BACKEND_API}/backtest/run`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -132,7 +132,7 @@ function Backtester() {
           throw new Error('Backtest simulation timed out (120s). Please verify your Render backend container is running and populated.')
         }
         await new Promise(r => setTimeout(r, 500))
-        const statusResp = await fetch(`${API_BASE}/backtest/${run_id}/status`)
+        const statusResp = await fetch(`${BACKEND_API}/backtest/${run_id}/status`)
         if (!statusResp.ok) throw new Error('Lost connection to backtest service.')
         const statusData = await statusResp.json()
         status = statusData.status
@@ -141,7 +141,7 @@ function Backtester() {
         }
       }
 
-      const resultsResp = await fetch(`${API_BASE}/backtest/${run_id}/results`)
+      const resultsResp = await fetch(`${BACKEND_API}/backtest/${run_id}/results`)
       const resultsData = await resultsResp.json()
       setResults(resultsData)
       setActiveTab('results')
@@ -251,7 +251,7 @@ function Backtester() {
         {activeTab === 'saved' && (
           <SavedStrategies
             onLoad={loadStrategy}
-            apiBase={API_BASE}
+            apiBase={BACKEND_API}
             refreshCounter={refreshSavedCounter}
           />
         )}
