@@ -26,7 +26,7 @@ router = APIRouter(prefix="/api/pt/strategies", tags=["strategies"])
 
 # ── Create Strategy ────────────────────────────────────────────────────────────
 
-@router.post("/")
+@router.post("")
 async def create_strategy(req: StrategyCreate, user: dict = Depends(require_user)):
     """Create a new paper trading strategy with multiple legs (draft status)."""
     user_id = user["_id"]
@@ -107,7 +107,7 @@ async def create_strategy(req: StrategyCreate, user: dict = Depends(require_user
 
 # ── List Strategies ────────────────────────────────────────────────────────────
 
-@router.get("/")
+@router.get("")
 async def list_strategies(
     status_filter: Optional[str] = Query(None, alias="status"),
     skip: int = Query(0, ge=0),

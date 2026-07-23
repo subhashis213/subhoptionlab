@@ -92,9 +92,9 @@ export const authApi = {
 
 // Strategy API
 export const strategyApi = {
-  list: (status) => apiFetch(`/api/pt/strategies/${status ? `?status=${status}` : ''}`),
+  list: (status) => apiFetch(`/api/pt/strategies${status ? `?status=${status}` : ''}`),
   get: (id) => apiFetch(`/api/pt/strategies/${id}`),
-  create: (data) => apiFetch('/api/pt/strategies/', { method: 'POST', body: JSON.stringify(data) }),
+  create: (data) => apiFetch('/api/pt/strategies', { method: 'POST', body: JSON.stringify(data) }),
   activate: (id) => apiFetch(`/api/pt/strategies/${id}/activate`, { method: 'POST' }),
   reuse: (id) => apiFetch(`/api/pt/strategies/${id}/reuse`, { method: 'POST' }),
   exitLeg: (stratId, legId) => apiFetch(`/api/pt/strategies/${stratId}/legs/${legId}/exit`, { method: 'POST' }),
@@ -106,7 +106,7 @@ export const strategyApi = {
 
 // Wallet API
 export const walletApi = {
-  get: () => apiFetch('/api/pt/wallet/'),
+  get: () => apiFetch('/api/pt/wallet'),
   transactions: (skip = 0, limit = 50) => apiFetch(`/api/pt/wallet/transactions?skip=${skip}&limit=${limit}`),
 }
 

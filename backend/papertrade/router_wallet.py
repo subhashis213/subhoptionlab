@@ -12,7 +12,7 @@ from papertrade.models import WalletResponse
 router = APIRouter(prefix="/api/pt/wallet", tags=["wallet"])
 
 
-@router.get("/", response_model=WalletResponse)
+@router.get("", response_model=WalletResponse)
 async def get_wallet(user: dict = Depends(require_user)):
     """Get current user's wallet with balance and unrealized P&L."""
     user_id = user["_id"]
