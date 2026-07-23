@@ -21,14 +21,30 @@ SECRET_KEY = os.getenv("PT_JWT_SECRET", "paper-trade-secret-change-in-production
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS = 24
 
-# ── Password Hashing ──────────────────────────────────────────────────────────
+import hashlib
+import hmac
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    try:
+        return pwd_context.hash(password)
+    except Exception as e:
+        logger.warning(f"passlib hash failed, falling back to pbkdf2: {e}")
+        salt = os.urandom(16).hex()
+        derived = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt.encode("utf-8"), 100000).hex()
+        return f"pbkdf2_sha256${salt}${derived}"
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    try:
+        if hashed and hashed.startswith("pbkdf2_sha256$"):
+            _, salt, derived = hashed.split("$")
+            check = hashlib.pbkdf2_hmac("sha256", plain.encode("utf-8"), salt.encode("utf-8"), 100000).hex()
+            return hmac.compare_digest(check, derived)
+        return pwd_context.verify(plain, hashed)
+    except Exception as e:
+        logger.error(f"verify_password failed: {e}")
+        return False
 
 
 # ── JWT Tokens ─────────────────────────────────────────────────────────────────

@@ -53,7 +53,7 @@ wallet_collection = None
 
 
 async def connect_to_mongo():
-    """Connect to MongoDB and initialize collections."""
+    """Connect to MongoDB and initialize collections safely."""
     global client, db
     global broker_credentials_collection
     global live_strategies_collection
@@ -61,23 +61,29 @@ async def connect_to_mongo():
     global live_positions_collection
     global wallet_collection
 
-    logger.info(f"Connecting to MongoDB (DB: {DB_NAME})...")
-    try:
-        client = AsyncIOMotorClient(MONGODB_URI, serverSelectionTimeoutMS=5000)
-        db = client[DB_NAME]
-        await db.command("ping")
-        logger.info("Successfully authenticated & connected to MongoDB Atlas!")
-    except Exception as e:
-        logger.error("MongoDB Atlas Authentication/Connection Failed: %s", e)
-        raise e
+    logger.info(f"Initializing MongoDB connection (DB: {DB_NAME})...")
+    client = AsyncIOMotorClient(MONGODB_URI, serverSelectionTimeoutMS=15000)
+    db = client[DB_NAME]
     
+    # Initialize live trading collections immediately so they are never None
     broker_credentials_collection = db["broker_credentials"]
     live_strategies_collection = db["live_strategies"]
     live_orders_collection = db["live_orders"]
     live_positions_collection = db["live_positions"]
     wallet_collection = db["wallets"]
-    
-    logger.info("Connected to MongoDB successfully.")
+
+    # Also initialize paper trading collections
+    from papertrade.db import init_papertrade_collections
+    await init_papertrade_collections(db)
+
+    try:
+        await db.command("ping")
+        logger.info("✅ Successfully authenticated & connected to MongoDB Atlas!")
+    except Exception as e:
+        logger.warning(
+            "⚠️ MongoDB Ping check failed during startup: %s. "
+            "Collections are initialized. If this is a connection timeout, ensure 0.0.0.0/0 is whitelisted in MongoDB Atlas Network Access.", e
+        )
 
 
 async def close_mongo_connection():

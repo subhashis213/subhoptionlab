@@ -42,11 +42,15 @@ export async function apiFetch(path, options = {}) {
     headers['Authorization'] = `Bearer ${token}`
   }
 
-  const url = `${API_BASE}${path}`
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  })
+  let response
+  try {
+    response = await fetch(url, {
+      ...options,
+      headers,
+    })
+  } catch (netErr) {
+    throw new Error('Network error: Server is starting up or unreachable. Please try again in a few seconds.')
+  }
 
   if (response.status === 401) {
     clearAuth()
@@ -55,8 +59,15 @@ export async function apiFetch(path, options = {}) {
   }
 
   if (!response.ok) {
-    const err = await response.json().catch(() => ({}))
-    throw new Error(err.detail || `Request failed: ${response.status}`)
+    let detail = ''
+    try {
+      const err = await response.json()
+      detail = typeof err.detail === 'string' ? err.detail : JSON.stringify(err.detail || err)
+    } catch {
+      const text = await response.text().catch(() => '')
+      detail = text || `Server Error (${response.status})`
+    }
+    throw new Error(detail || `Request failed: ${response.status}`)
   }
 
   return response.json()

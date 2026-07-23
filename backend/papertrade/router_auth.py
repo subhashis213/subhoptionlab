@@ -20,8 +20,20 @@ router = APIRouter(prefix="/api/pt/auth", tags=["auth"])
 @router.post("/register", response_model=TokenResponse)
 async def register(req: UserCreate):
     """Register a new user. Role is always 'user' — admins are created via CLI."""
-    # Check if email already exists
-    existing = await db.users_collection.find_one({"email": req.email.lower().strip()})
+    if db.users_collection is None:
+        from live.db import db as mongo_db
+        from papertrade.db import init_papertrade_collections
+        await init_papertrade_collections(mongo_db)
+
+    try:
+        # Check if email already exists
+        existing = await db.users_collection.find_one({"email": req.email.lower().strip()})
+    except Exception as err:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Database connection error: {str(err)}. Ensure 0.0.0.0/0 is whitelisted in MongoDB Atlas Network Access."
+        )
+
     if existing:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -73,7 +85,18 @@ async def register(req: UserCreate):
 @router.post("/login", response_model=TokenResponse)
 async def login(req: UserLogin):
     """Authenticate user and return JWT."""
-    user = await db.users_collection.find_one({"email": req.email.lower().strip()})
+    if db.users_collection is None:
+        from live.db import db as mongo_db
+        from papertrade.db import init_papertrade_collections
+        await init_papertrade_collections(mongo_db)
+
+    try:
+        user = await db.users_collection.find_one({"email": req.email.lower().strip()})
+    except Exception as err:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Database connection error: {str(err)}. Ensure 0.0.0.0/0 is whitelisted in MongoDB Atlas Network Access."
+        )
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
