@@ -16,6 +16,16 @@ def format_mongo_uri(uri: str) -> str:
     """Safely format and URL-encode username and password in MongoDB URI according to RFC 3986."""
     if not uri or not uri.startswith("mongodb"):
         return uri
+        
+    if "<password>" in uri or "<db_password>" in uri or ("<" in uri and ">" in uri):
+        raise ValueError(
+            "\n" + "="*80 + "\n"
+            "CRITICAL ERROR: Your MONGODB_URI contains placeholder text like <password> or <db_password>.\n"
+            "You must replace this with your ACTUAL MongoDB Atlas password in the Render dashboard.\n"
+            "Do not include the < and > brackets in your password.\n"
+            + "="*80 + "\n"
+        )
+        
     pattern = r'^(mongodb(?:\+srv)?://)([^:]+):(.+)@([^/@\?]+(?::\d+)?(?:/.*)?)$'
     match = re.match(pattern, uri)
     if match:
