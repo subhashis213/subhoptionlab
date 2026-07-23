@@ -259,6 +259,7 @@ async def activate_strategy(strategy_id: str, user: dict = Depends(require_user)
             atm = round(spot_price / step) * step
             resolved_strike = atm
             
+            
             if isinstance(strike_val, str):
                 match = re.match(r"^(ITM|OTM)(\d+)$", strike_val.upper().strip())
                 if match:
@@ -268,6 +269,10 @@ async def activate_strategy(strategy_id: str, user: dict = Depends(require_user)
                         resolved_strike = atm - (offset * step) if type_ == "ITM" else atm + (offset * step)
                     else:
                         resolved_strike = atm + (offset * step) if type_ == "ITM" else atm - (offset * step)
+                elif strike_val.upper().strip() == "ATM":
+                    resolved_strike = atm
+            else:
+                resolved_strike = float(strike_val)
 
             leg["strike"] = resolved_strike
             leg["instrument_key"] = build_instrument_key(underlying, leg["expiry"], resolved_strike, option_type)

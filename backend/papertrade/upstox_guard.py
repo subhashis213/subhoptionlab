@@ -73,7 +73,7 @@ async def fetch_ltp(instrument_keys: List[str]) -> Dict[str, float]:
         loop = asyncio.get_event_loop()
         response = await loop.run_in_executor(
             None,
-            lambda: requests.get(url, params={"instrument_key": instruments_str}, headers=headers, timeout=10)
+            lambda: requests.get(url, params={"instrument_key": instruments_str}, headers=headers, timeout=3)
         )
 
         if response.status_code == 200:
@@ -135,7 +135,7 @@ async def fetch_quotes(instrument_keys: List[str]) -> Dict[str, dict]:
         loop = asyncio.get_event_loop()
         response = await loop.run_in_executor(
             None,
-            lambda: requests.get(url, params={"instrument_key": instruments_str}, headers=headers, timeout=10)
+            lambda: requests.get(url, params={"instrument_key": instruments_str}, headers=headers, timeout=3)
         )
 
         if response.status_code == 200:
@@ -170,7 +170,7 @@ async def fetch_option_chain(instrument_key: str, expiry_date: str) -> dict:
                 url, 
                 params={"instrument_key": instrument_key, "expiry_date": expiry_date},
                 headers=headers, 
-                timeout=10
+                timeout=3
             )
         )
 
