@@ -8,8 +8,8 @@ import SavedStrategies from '../../components/SavedStrategies'
 import '../../App.css'
 
 const getApiBase = () => {
-  let url = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
-  url = url.replace(/\/+$/, '') // strip trailing slashes
+  let url = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+  url = url.replace(/\/+$/, '') + '/api'; // strip trailing slashes
   if (!url.endsWith('/api')) {
     url += '/api'
   }

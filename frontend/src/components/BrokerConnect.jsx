@@ -10,7 +10,8 @@ export default function BrokerConnect() {
 
   const fetchStatus = async () => {
     try {
-      const res = await fetch('http://localhost:8000/api/broker/status?broker=upstox');
+      const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const res = await fetch(`${API_BASE}/api/broker/status?broker=upstox`);
       const data = await res.json();
       setStatus(data);
     } catch (err) {
@@ -28,7 +29,8 @@ export default function BrokerConnect() {
     setMessage('');
     
     try {
-      const res = await fetch('http://localhost:8000/api/broker/connect', {
+      const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const res = await fetch(`${API_BASE}/api/broker/connect`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -57,7 +59,8 @@ export default function BrokerConnect() {
   const handleDisconnect = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:8000/api/broker/disconnect', {
+      const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const res = await fetch(`${API_BASE}/api/broker/disconnect`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ broker: 'upstox' })
