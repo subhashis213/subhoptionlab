@@ -48,7 +48,7 @@ export async function apiFetch(path, options = {}) {
 
   let response
   try {
-    response = await fetch(url, {
+    response = await fetch(`${API_BASE}${path}`, {
       ...options,
       headers,
     })
