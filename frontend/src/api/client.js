@@ -4,7 +4,7 @@
  */
 
 const getApiBase = () => {
-  let url = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+  let url = import.meta.env.VITE_API_URL || ''
   url = url.replace(/\/+$/, '')
   return url
 }
@@ -135,7 +135,7 @@ export const marketsApi = {
 
 // WebSocket
 export function connectWebSocket(token, onMessage) {
-  const wsBase = API_BASE.replace(/^http/, 'ws')
+  let wsBase = API_BASE ? API_BASE.replace(/^http/, 'ws') : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`
   const ws = new WebSocket(`${wsBase}/ws/pt/${token}`)
 
   ws.onopen = () => {
