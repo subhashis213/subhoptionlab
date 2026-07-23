@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import './DeployStrategyModal.css';
+import { API_BASE } from '../api/client';
 
 export default function DeployStrategyModal({ strategy, onClose, onDeploy }) {
   const [mode, setMode] = useState('paper');
@@ -18,7 +19,6 @@ export default function DeployStrategyModal({ strategy, onClose, onDeploy }) {
 
     setLoading(true);
     try {
-      const API_BASE = import.meta.env.VITE_API_URL || '';
       const res = await fetch(`${API_BASE}/api/live/deploy`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

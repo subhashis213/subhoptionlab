@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import OptionChain from '../components/OptionChain';
+import { API_BASE } from '../api/client';
 import './LiveMonitor.css';
 
 export default function LiveMonitor() {
@@ -33,7 +34,6 @@ export default function LiveMonitor() {
 
   const fetchDeployed = async () => {
     try {
-      const API_BASE = import.meta.env.VITE_API_URL || '';
       const [stratRes, walletRes] = await Promise.all([
         fetch(`${API_BASE}/api/live/deployed`),
         fetch(`${API_BASE}/api/live/wallet`)
@@ -63,7 +63,6 @@ export default function LiveMonitor() {
     const msg = status === 'waiting' ? "Are you sure you want to CANCEL this deployment?" : "Are you sure you want to SQUARE OFF this active strategy?";
     if(!window.confirm(msg)) return;
     try {
-      const API_BASE = import.meta.env.VITE_API_URL || '';
       await fetch(`${API_BASE}/api/live/${id}/kill`, { method: 'POST' });
       fetchDeployed();
     } catch (err) {
@@ -74,7 +73,6 @@ export default function LiveMonitor() {
   const handleKillAll = async () => {
     if(!window.confirm("PANIC BUTTON: Are you sure you want to SQUARE OFF ALL strategies immediately?")) return;
     try {
-      const API_BASE = import.meta.env.VITE_API_URL || '';
       await fetch(`${API_BASE}/api/live/kill-all`, { method: 'POST' });
       fetchDeployed();
     } catch (err) {
@@ -85,7 +83,6 @@ export default function LiveMonitor() {
   const handleResetWallet = async () => {
     if(!window.confirm("Are you sure you want to reset your paper trading wallet back to ₹250,000?")) return;
     try {
-      const API_BASE = import.meta.env.VITE_API_URL || '';
       await fetch(`${API_BASE}/api/live/wallet/reset`, { method: 'POST' });
       fetchDeployed();
     } catch (err) {

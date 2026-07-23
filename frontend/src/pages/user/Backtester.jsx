@@ -5,10 +5,11 @@ import StrategyBuilder from '../../components/StrategyBuilder'
 import BacktestConfig from '../../components/BacktestConfig'
 import ResultsDashboard from '../../components/ResultsDashboard'
 import SavedStrategies from '../../components/SavedStrategies'
+import { API_BASE } from '../../api/client'
 import '../../App.css'
 
 const getApiBase = () => {
-  let url = import.meta.env.VITE_API_URL || '';
+  let url = API_BASE
   url = url.replace(/\/+$/, '') + '/api'; // strip trailing slashes
   if (!url.endsWith('/api')) {
     url += '/api'

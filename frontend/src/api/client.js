@@ -3,13 +3,19 @@
  * All API calls go through this module.
  */
 
-const getApiBase = () => {
+export const getApiBase = () => {
   let url = import.meta.env.VITE_API_URL || ''
+  // If running in production (not localhost), ignore any localhost VITE_API_URL
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    if (url.includes('localhost') || url.includes('127.0.0.1')) {
+      url = ''
+    }
+  }
   url = url.replace(/\/+$/, '')
   return url
 }
 
-const API_BASE = getApiBase()
+export const API_BASE = getApiBase()
 
 // Token management
 const TOKEN_KEY = 'pt_access_token'

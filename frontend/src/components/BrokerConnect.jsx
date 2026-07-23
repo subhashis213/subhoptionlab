@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE } from '../api/client';
 import './BrokerConnect.css';
 
 export default function BrokerConnect() {
@@ -10,7 +11,6 @@ export default function BrokerConnect() {
 
   const fetchStatus = async () => {
     try {
-      const API_BASE = import.meta.env.VITE_API_URL || '';
       const res = await fetch(`${API_BASE}/api/broker/status?broker=upstox`);
       const data = await res.json();
       setStatus(data);
@@ -29,7 +29,6 @@ export default function BrokerConnect() {
     setMessage('');
     
     try {
-      const API_BASE = import.meta.env.VITE_API_URL || '';
       const res = await fetch(`${API_BASE}/api/broker/connect`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -59,7 +58,6 @@ export default function BrokerConnect() {
   const handleDisconnect = async () => {
     setLoading(true);
     try {
-      const API_BASE = import.meta.env.VITE_API_URL || '';
       const res = await fetch(`${API_BASE}/api/broker/disconnect`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
