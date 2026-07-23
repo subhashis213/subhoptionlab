@@ -5,11 +5,9 @@
 
 export const getApiBase = () => {
   let url = import.meta.env.VITE_API_URL || ''
-  // If running in production (not localhost), ignore any localhost VITE_API_URL
+  // On production (non-localhost), ALWAYS use relative path so vercel.json proxy handles requests seamlessly
   if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-    if (url.includes('localhost') || url.includes('127.0.0.1')) {
-      url = ''
-    }
+    url = ''
   }
   url = url.replace(/\/+$/, '')
   return url
