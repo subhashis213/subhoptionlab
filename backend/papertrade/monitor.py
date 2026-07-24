@@ -663,7 +663,11 @@ class MonitorService:
             # Move SL to entry price (cost) — breakeven protection
             await db.strategy_legs_collection.update_one(
                 {"_id": leg["_id"]},
-                {"$set": {"current_sl_price": entry_price}},
+                {"$set": {
+                    "current_sl_price": entry_price,
+                    "sl_value": 0,
+                    "sl_type": "points"
+                }},
             )
             affected_legs.append({
                 "leg_id": leg["_id"],
