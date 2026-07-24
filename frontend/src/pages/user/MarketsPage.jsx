@@ -7,6 +7,8 @@ import useMarketStream from '../../hooks/useMarketStream'
 export default function MarketsPage() {
   const [indices, setIndices] = useState([])
   const [loadingIndices, setLoadingIndices] = useState(true)
+  const [topStocks, setTopStocks] = useState({ gainers: [], losers: [] })
+  const [loadingTopStocks, setLoadingTopStocks] = useState(true)
   
   const [selectedUnderlying, setSelectedUnderlying] = useState('BANKNIFTY')
   const [isStock, setIsStock] = useState(false)
@@ -45,8 +47,15 @@ export default function MarketsPage() {
         if (row.put_options?.instrument_key) keys.push(row.put_options.instrument_key)
       })
     }
+    
+    // Add top stock keys
+    if (topStocks.gainers.length > 0) {
+      topStocks.gainers.forEach(s => keys.push(s.instrument_key))
+      topStocks.losers.forEach(s => keys.push(s.instrument_key))
+    }
+    
     return keys;
-  }, [indices, optionChain, isStock, selectedUnderlying])
+  }, [indices, optionChain, isStock, selectedUnderlying, topStocks])
 
   const liveData = useMarketStream(wsKeys)
 
@@ -103,8 +112,24 @@ export default function MarketsPage() {
     setIsSearching(false)
   }
 
+  const fetchTopStocks = async () => {
+    try {
+      setLoadingTopStocks(true)
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/pt/markets/top-stocks`)
+      if (res.ok) {
+        const data = await res.json()
+        setTopStocks(data)
+      }
+    } catch (err) {
+      console.error('Error fetching top stocks', err)
+    } finally {
+      setLoadingTopStocks(false)
+    }
+  }
+
   useEffect(() => {
     fetchIndices()
+    fetchTopStocks()
   }, [])
 
   useEffect(() => {
@@ -229,12 +254,61 @@ export default function MarketsPage() {
         )}
       </div>
 
+      {/* Top Gainers & Losers */}
+      <div style={{ display: 'flex', gap: '24px', marginBottom: '24px', flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: '300px' }}>
+          <h3 style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <TrendingUp size={20} color="var(--success)" /> Top Gainers
+          </h3>
+          <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '8px' }}>
+            {loadingTopStocks ? <p>Loading...</p> : topStocks.gainers.map(s => {
+              const liveInfo = liveData[s.instrument_key]
+              const currentLtp = liveInfo?.ltpc?.ltp || liveInfo?.last_price || s.ltp
+              return (
+                <div key={s.symbol} className="stat-card" style={{ minWidth: '150px', cursor: 'pointer' }} onClick={() => selectStock(s.symbol)}>
+                  <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{s.symbol}</div>
+                  <div style={{ fontSize: '1.2rem', margin: '4px 0' }}>₹{currentLtp.toFixed(2)}</div>
+                  <div className="profit" style={{ fontSize: '0.8rem' }}>+{s.change_percent}%</div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+        <div style={{ flex: 1, minWidth: '300px' }}>
+          <h3 style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <TrendingDown size={20} color="var(--danger)" /> Top Losers
+          </h3>
+          <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '8px' }}>
+            {loadingTopStocks ? <p>Loading...</p> : topStocks.losers.map(s => {
+              const liveInfo = liveData[s.instrument_key]
+              const currentLtp = liveInfo?.ltpc?.ltp || liveInfo?.last_price || s.ltp
+              return (
+                <div key={s.symbol} className="stat-card" style={{ minWidth: '150px', cursor: 'pointer' }} onClick={() => selectStock(s.symbol)}>
+                  <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{s.symbol}</div>
+                  <div style={{ fontSize: '1.2rem', margin: '4px 0' }}>₹{currentLtp.toFixed(2)}</div>
+                  <div className="loss" style={{ fontSize: '0.8rem' }}>{s.change_percent}%</div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+
       {/* Option Chain Section */}
       <div className="card markets-card">
         <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
             <h3 style={{ margin: 0 }}>{selectedUnderlying} {isStock ? 'Stock Option Chain' : 'Option Chain'}</h3>
             {spotPrice > 0 && <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Live Spot: <span style={{ color: 'var(--text)', fontWeight: 600 }}>{spotPrice.toFixed(2)}</span></span>}
+            {isStock && spotPrice > 0 && (
+              <button 
+                className="btn-primary" 
+                style={{ padding: '4px 12px', fontSize: '0.8rem' }}
+                onClick={() => setSelectedTrade({ strike: 0, type: 'EQ', ltp: spotPrice, symbol: selectedUnderlying, expiry: '', instrument_key: `NSE_EQ|${selectedUnderlying}` })}
+              >
+                Trade Stock
+              </button>
+            )}
           </div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Expiry:</span>

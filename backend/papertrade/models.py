@@ -117,7 +117,7 @@ class LegCreate(BaseModel):
     symbol: str  # e.g., "NIFTY", "BANKNIFTY"
     expiry: str  # e.g., "2026-07-24"
     strike: Union[float, str]
-    option_type: Literal["CE", "PE"]
+    option_type: Literal["CE", "PE", "EQ"]
     side: Literal["BUY", "SELL"]
     qty: int = Field(..., ge=1, description="Number of lots")
     order_type: Literal["MARKET", "LIMIT"] = "MARKET"
@@ -146,7 +146,7 @@ class StrategyLegInDB(BaseModel):
     symbol: str
     expiry: str
     strike: Union[float, str]
-    option_type: Literal["CE", "PE"]
+    option_type: Literal["CE", "PE", "EQ"]
     side: Literal["BUY", "SELL"]
     qty: int  # in lots
     order_type: Literal["MARKET", "LIMIT"] = "MARKET"
@@ -212,7 +212,7 @@ class TradeHistoryInDB(BaseModel):
     action: Literal["BUY", "SELL"]
     symbol: str
     strike: Union[float, str]
-    option_type: Literal["CE", "PE"]
+    option_type: Literal["CE", "PE", "EQ"]
     price: float
     qty: int
     pnl: float = 0.0

@@ -293,6 +293,9 @@ def build_instrument_key(underlying: str, expiry: str, strike: float, option_typ
     
     Example: NSE_FO|NIFTY2472424500CE
     """
+    if option_type == "EQ":
+        return f"NSE_EQ|{underlying}"
+        
     # Upstox uses the format: NSE_FO|NIFTY24JUL24500CE
     # For simplicity, we'll construct the standard NSE key format.
     # In production, you'd look this up from the instruments master file.

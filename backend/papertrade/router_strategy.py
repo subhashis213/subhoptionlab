@@ -138,7 +138,10 @@ async def list_strategies(
         for leg in legs:
             entry = leg.get("entry_price", 0)
             current = leg.get("current_ltp", entry)
-            lot_size = LOT_SIZES.get(leg.get("symbol", "NIFTY"), 50)
+            if leg.get("option_type") == "EQ":
+                lot_size = 1
+            else:
+                lot_size = get_lot_size(leg.get("symbol", "NIFTY"))
             total_qty = leg.get("qty", 1) * lot_size
 
             if leg["current_status"] in ("sl_hit", "target_hit", "manually_closed"):
@@ -185,7 +188,10 @@ async def get_strategy(strategy_id: str, user: dict = Depends(require_user)):
     total_pnl = 0.0
     for leg in legs:
         entry = leg.get("entry_price", 0)
-        lot_size = LOT_SIZES.get(leg.get("symbol", "NIFTY"), 50)
+        if leg.get("option_type") == "EQ":
+            lot_size = 1
+        else:
+            lot_size = get_lot_size(leg.get("symbol", "NIFTY"))
         total_qty = leg.get("qty", 1) * lot_size
 
         if leg["current_status"] in ("sl_hit", "target_hit", "manually_closed"):
@@ -306,7 +312,10 @@ async def activate_strategy(strategy_id: str, user: dict = Depends(require_user)
         if ltp is None or ltp <= 0:
             ltp = 0.0
         qty_lots = leg.get("qty", 1)
-        lot_size = LOT_SIZES.get(leg.get("symbol", strategy.get("underlying")), 15)
+        if leg.get("option_type") == "EQ":
+            lot_size = 1
+        else:
+            lot_size = get_lot_size(leg.get("symbol", strategy.get("underlying")))
         total_qty = qty_lots * lot_size
         
         if leg["side"] == "BUY":
@@ -416,7 +425,10 @@ async def exit_leg(strategy_id: str, leg_id: str, user: dict = Depends(require_u
 
     # Calculate realized P&L
     entry = leg["entry_price"]
-    lot_size = LOT_SIZES.get(leg.get("symbol", "NIFTY"), 50)
+    if leg.get("option_type") == "EQ":
+        lot_size = 1
+    else:
+        lot_size = get_lot_size(leg.get("symbol", "NIFTY"))
     total_qty = leg.get("qty", 1) * lot_size
 
     if leg["side"] == "BUY":
@@ -513,7 +525,10 @@ async def exit_all_legs(strategy_id: str, user: dict = Depends(require_user)):
     for leg in open_legs:
         exit_price = ltp_data.get(leg.get("instrument_key", ""), leg.get("current_ltp", leg["entry_price"]))
         entry = leg["entry_price"]
-        lot_size = LOT_SIZES.get(leg.get("symbol", "NIFTY"), 50)
+        if leg.get("option_type") == "EQ":
+            lot_size = 1
+        else:
+            lot_size = get_lot_size(leg.get("symbol", "NIFTY"))
         total_qty = leg.get("qty", 1) * lot_size
 
         if leg["side"] == "BUY":

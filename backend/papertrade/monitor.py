@@ -132,7 +132,10 @@ class MonitorService:
                 
                 entry_price = leg["entry_price"]
                 qty = leg["qty"]
-                lot_size = LOT_SIZES.get(leg.get("symbol", "NIFTY"), 50)
+                if leg.get("option_type") == "EQ":
+                    lot_size = 1
+                else:
+                    lot_size = get_lot_size(leg.get("symbol", "NIFTY"))
                 total_qty = qty * lot_size
                 
                 pnl = (exit_price - entry_price) * total_qty if leg["side"] == "BUY" else (entry_price - exit_price) * total_qty
@@ -218,7 +221,10 @@ class MonitorService:
                 
                 entry_price = leg.get("entry_price", 0.0)
                 qty = leg.get("qty", 1)
-                lot_size = LOT_SIZES.get(leg.get("symbol", "NIFTY"), 50)
+                if leg.get("option_type") == "EQ":
+                    lot_size = 1
+                else:
+                    lot_size = get_lot_size(leg.get("symbol", "NIFTY"))
                 total_qty = qty * lot_size
                 
                 pnl = (exit_price - entry_price) * total_qty if leg["side"] == "BUY" else (entry_price - exit_price) * total_qty
@@ -572,7 +578,10 @@ class MonitorService:
         Close a leg: update status, calculate P&L, log trade history, update wallet.
         """
         entry = leg["entry_price"]
-        lot_size = LOT_SIZES.get(leg.get("symbol", "NIFTY"), 50)
+        if leg.get("option_type") == "EQ":
+            lot_size = 1
+        else:
+            lot_size = get_lot_size(leg.get("symbol", "NIFTY"))
         total_qty = leg.get("qty", 1) * lot_size
 
         if leg["side"] == "BUY":

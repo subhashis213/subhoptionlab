@@ -95,7 +95,7 @@ export default function QuickTradeModal({ tradeDetails, onClose, onExecute }) {
               <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>{symbol}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-              <h2 style={{ margin: '8px 0 0' }}>{strike} {type}</h2>
+              <h2 style={{ margin: '8px 0 0' }}>{type === 'EQ' ? 'EQUITY' : `${strike} ${type}`}</h2>
               <span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>₹{ltp.toFixed(2)}</span>
             </div>
           </div>
@@ -155,7 +155,7 @@ export default function QuickTradeModal({ tradeDetails, onClose, onExecute }) {
 
           <div style={{ display: 'flex', gap: '16px' }}>
             <div className="form-group" style={{ flex: 1 }}>
-              <label>Lots</label>
+              <label>{type === 'EQ' ? 'Quantity (Shares)' : 'Lots'}</label>
               <div className="stepper" style={{ marginBottom: 0 }}>
                 <button type="button" onClick={() => setLots(Math.max(1, lots - 1))}>-</button>
                 <input 

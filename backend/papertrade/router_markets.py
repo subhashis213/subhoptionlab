@@ -67,6 +67,48 @@ async def get_indices(user: dict = Depends(require_user)):
         raise HTTPException(status_code=500, detail="Failed to fetch indices")
 
 
+@router.get("/top-stocks")
+async def get_top_stocks():
+    """Fetch Top Gainers and Losers across all F&O Stocks."""
+    from data.stock_registry import TOP_FO_STOCKS
+    keys = [f"NSE_EQ|{s['symbol']}" for s in TOP_FO_STOCKS]
+    try:
+        live_quotes = await fetch_quotes(keys)
+        results = []
+        for stock in TOP_FO_STOCKS:
+            key = f"NSE_EQ|{stock['symbol']}"
+            quote = live_quotes.get(key)
+            if not quote:
+                continue
+            ltp = float(quote.get("last_price", 0.0))
+            change = float(quote.get("net_change", 0.0))
+            change_percent = 0.0
+            
+            if "net_change" in quote:
+                ohlc = quote.get("ohlc", {})
+                close_price = float(ohlc.get("close", 0.0))
+                if close_price > 0:
+                    change_percent = round((change / close_price) * 100, 2)
+                    
+            results.append({
+                "symbol": stock["symbol"],
+                "name": stock["name"],
+                "ltp": ltp,
+                "change": round(change, 2),
+                "change_percent": change_percent,
+                "instrument_key": key
+            })
+            
+        results.sort(key=lambda x: x["change_percent"], reverse=True)
+        return {
+            "gainers": results[:10],
+            "losers": results[-10:][::-1]
+        }
+    except Exception as e:
+        logger.error(f"Error fetching top stocks: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch top stocks")
+
+
 @router.get("/option-chain")
 async def get_option_chain(underlying: str, expiry: str, user: dict = Depends(require_user)):
     """
