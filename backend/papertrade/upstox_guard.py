@@ -16,6 +16,7 @@ import asyncio
 from typing import Dict, List, Optional
 import requests
 from dotenv import load_dotenv
+import yfinance as yf
 
 load_dotenv()
 
@@ -111,17 +112,40 @@ async def fetch_ltp(instrument_keys: List[str]) -> Dict[str, float]:
 
 
 def _generate_paper_fallback_ltp(key: str) -> float:
-    """Generate realistic paper trading LTP fallback if Upstox live token is expired or unavailable."""
+    """Generate realistic paper trading LTP fallback using yfinance if Upstox live token is expired or unavailable."""
     key_str = str(key).upper()
+    
+    # Try fetching from yfinance for indices
+    ticker = None
+    if "NSE_INDEX|NIFTY BANK" in key_str or "BANKNIFTY" in key_str:
+        if "NSE_INDEX" in key_str: ticker = "^NSEBANK"
+    elif "NSE_INDEX|NIFTY 50" in key_str or "NIFTY" in key_str:
+        if "NSE_INDEX" in key_str: ticker = "^NSEI"
+    elif "FINNIFTY" in key_str:
+        if "NSE_INDEX" in key_str: ticker = "^CNXFIN"
+    elif "MIDCAPNIFTY" in key_str:
+        if "NSE_INDEX" in key_str: ticker = "^NSEMDCP50"
+        
+    if ticker:
+        try:
+            info = yf.Ticker(ticker).info
+            price = info.get("currentPrice") or info.get("regularMarketPrice")
+            if price:
+                return float(price)
+        except Exception:
+            pass
+            
+    # Hardcoded fallbacks if yfinance fails or for options
     if "NSE_INDEX|NIFTY BANK" in key_str or "BANKNIFTY" in key_str:
         return 57968.60 if "NSE_INDEX" in key_str else 320.50
     elif "NSE_INDEX|NIFTY 50" in key_str or "NIFTY" in key_str:
         return 24180.60 if "NSE_INDEX" in key_str else 145.25
     elif "FINNIFTY" in key_str:
-        return 23500.00 if "NSE_INDEX" in key_str else 110.00
-    elif "MIDCAP" in key_str:
-        return 12500.00 if "NSE_INDEX" in key_str else 85.00
-    return 150.00
+        return 25776.00 if "NSE_INDEX" in key_str else 120.40
+    elif "MIDCAPNIFTY" in key_str:
+        return 17565.80 if "NSE_INDEX" in key_str else 85.10
+        
+    return 100.00
 
 
 async def fetch_quotes(instrument_keys: List[str]) -> Dict[str, dict]:
@@ -163,12 +187,41 @@ async def fetch_quotes(instrument_keys: List[str]) -> Dict[str, dict]:
 def _generate_paper_fallback_quotes(keys: List[str]) -> Dict[str, dict]:
     result = {}
     for k in keys:
-        ltp = _generate_paper_fallback_ltp(k)
-        result[k] = {
-            "last_price": ltp,
-            "net_change": 0.0,
-            "ohlc": {"close": ltp}
-        }
+        key_str = str(k).upper()
+        ticker = None
+        if "NSE_INDEX|NIFTY BANK" in key_str or "BANKNIFTY" in key_str:
+            ticker = "^NSEBANK"
+        elif "NSE_INDEX|NIFTY 50" in key_str or "NIFTY" in key_str:
+            ticker = "^NSEI"
+        elif "FINNIFTY" in key_str:
+            ticker = "^CNXFIN"
+        elif "MIDCAPNIFTY" in key_str:
+            ticker = "^NSEMDCP50"
+            
+        quote_data = None
+        if ticker and "NSE_INDEX" in key_str:
+            try:
+                info = yf.Ticker(ticker).info
+                price = info.get("currentPrice") or info.get("regularMarketPrice")
+                change = info.get("regularMarketChange", 0.0)
+                if price:
+                    close_price = float(price) - float(change)
+                    quote_data = {
+                        "last_price": float(price),
+                        "net_change": float(change),
+                        "ohlc": {"close": close_price}
+                    }
+            except Exception:
+                pass
+                
+        if not quote_data:
+            ltp = _generate_paper_fallback_ltp(k)
+            quote_data = {
+                "last_price": ltp,
+                "net_change": 0.0,
+                "ohlc": {"close": ltp}
+            }
+        result[k] = quote_data
     return result
 
 
