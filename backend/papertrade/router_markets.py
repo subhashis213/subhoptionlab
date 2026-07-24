@@ -5,7 +5,7 @@ Provides endpoints for fetching index spot prices and option chains.
 
 from fastapi import APIRouter, HTTPException, Depends
 from papertrade.auth import require_user
-from papertrade.upstox_guard import fetch_ltp, fetch_option_chain
+from papertrade.upstox_guard import fetch_ltp, fetch_quotes, fetch_option_chain
 import logging
 from datetime import datetime, timedelta
 
@@ -26,21 +26,39 @@ async def get_indices(user: dict = Depends(require_user)):
     """Fetch live spot prices for major indices."""
     keys = list(INDICES.values())
     try:
-        live_quotes = await fetch_ltp(keys)
+        live_quotes = await fetch_quotes(keys)
         
         result = []
         for name, key in INDICES.items():
-            ltp = live_quotes.get(key)
+            quote = live_quotes.get(key)
             
-            # If token is invalid or market is closed, fetch_ltp returns nothing
-            if ltp is None:
-                ltp = 0.0
+            if not quote:
+                result.append({
+                    "symbol": name,
+                    "ltp": 0.0,
+                    "change": 0.0,
+                    "change_percent": 0.0
+                })
+                continue
+
+            ltp = float(quote.get("last_price", 0.0))
+            change = float(quote.get("net_change", 0.0))
+            change_percent = 0.0
+            
+            # Upstox returns net_change, but sometimes it doesn't return net_change_percent or we calculate it
+            # Let's try to get it directly, or calculate from close price
+            if "net_change" in quote:
+                # Calculate percent if not provided directly
+                ohlc = quote.get("ohlc", {})
+                close_price = float(ohlc.get("close", 0.0))
+                if close_price > 0:
+                    change_percent = round((change / close_price) * 100, 2)
 
             result.append({
                 "symbol": name,
                 "ltp": ltp,
-                "change": 0.0,
-                "change_percent": 0.0
+                "change": round(change, 2),
+                "change_percent": change_percent
             })
             
         return result

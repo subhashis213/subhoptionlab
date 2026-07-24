@@ -47,7 +47,7 @@ export default function QuickTradeModal({ tradeDetails, onClose, onExecute }) {
       name: `Quick ${action} ${symbol} ${strike} ${type}`,
       underlying: symbol,
       move_sl_to_cost: false,
-      execution_time: formattedTime,
+      entry_time: formattedTime,
       legs: [leg]
     }
 
@@ -56,7 +56,13 @@ export default function QuickTradeModal({ tradeDetails, onClose, onExecute }) {
       
       // Instantly activate for a live market feel (fetches live LTP)
       if (!formattedTime) {
-        await strategyApi.activate(res.strategy_id)
+        try {
+          await strategyApi.activate(res.strategy_id)
+        } catch (activationErr) {
+          // If activation fails (e.g. market closed), delete the draft and throw
+          await strategyApi.delete(res.strategy_id).catch(() => {})
+          throw activationErr
+        }
       }
 
       if (onExecute) onExecute()

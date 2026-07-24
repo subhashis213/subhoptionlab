@@ -38,15 +38,20 @@ export default function ProfilePage() {
         <h2>Profile</h2>
         <button 
           onClick={toggleTheme} 
-          className="btn-secondary"
           style={{ 
-            display: 'flex', alignItems: 'center', gap: '8px', 
-            padding: '8px 12px', borderRadius: '8px' 
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            width: '36px', height: '36px', 
+            borderRadius: '50%', 
+            background: 'var(--bg-hover)', 
+            border: '1px solid var(--border)',
+            color: 'var(--text)',
+            cursor: 'pointer',
+            transition: 'all 0.3s ease',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
           }}
-          title="Switch Dark / Light Theme"
+          title="Toggle Theme"
         >
           {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-          <span>{theme === 'dark' ? 'Light' : 'Dark'} Mode</span>
         </button>
       </div>
 
