@@ -28,35 +28,50 @@ export default function MarketsPage() {
     setTimeout(() => setIsRefreshing(false), 600)
   }
 
-  const fetchIndices = async () => {
+  const fetchIndices = async (isPolling = false) => {
     try {
       const data = await marketsApi.indices()
       setIndices(data)
     } catch (err) {
       console.error('Error fetching indices', err)
     } finally {
-      setLoadingIndices(false)
+      if (!isPolling) setLoadingIndices(false)
     }
   }
 
-  const fetchOptionChain = async () => {
+  const fetchOptionChain = async (isPolling = false) => {
     if (!expiry) return;
     try {
-      setLoadingChain(true)
+      if (!isPolling) setLoadingChain(true)
       const data = await marketsApi.optionChain(selectedUnderlying, expiry)
       setOptionChain(data)
     } catch (err) {
       console.error('Error fetching option chain', err)
     } finally {
-      setLoadingChain(false)
+      if (!isPolling) setLoadingChain(false)
     }
   }
 
   // Polling for indices
   useEffect(() => {
-    fetchIndices()
-    const interval = setInterval(fetchIndices, 1000)
-    return () => clearInterval(interval)
+    let timeoutId;
+    let isMounted = true;
+    
+    const pollIndices = async () => {
+      if (!isMounted) return;
+      await fetchIndices(true);
+      if (isMounted) {
+        timeoutId = setTimeout(pollIndices, 1500); // 1.5s interval after previous request finishes
+      }
+    };
+    
+    fetchIndices(); // Initial load
+    timeoutId = setTimeout(pollIndices, 1500);
+    
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+    }
   }, [])
 
   // Refetch option chain when underlying or expiry changes, and poll
@@ -88,9 +103,24 @@ export default function MarketsPage() {
   }, [expiry])
 
   useEffect(() => {
-    fetchOptionChain()
-    const interval = setInterval(fetchOptionChain, 1000)
-    return () => clearInterval(interval)
+    let timeoutId;
+    let isMounted = true;
+
+    const pollChain = async () => {
+      if (!isMounted) return;
+      await fetchOptionChain(true);
+      if (isMounted) {
+        timeoutId = setTimeout(pollChain, 2000); // 2s interval for option chain to reduce heavy load
+      }
+    };
+
+    fetchOptionChain(); // Initial load
+    timeoutId = setTimeout(pollChain, 2000);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+    }
   }, [selectedUnderlying, expiry])
 
   const spotPrice = indices.find(idx => idx.symbol === selectedUnderlying)?.ltp || 0
