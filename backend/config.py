@@ -59,9 +59,9 @@ NSE_BASE_URL = "https://www.nseindia.com"
 # ── Lot Sizes (per underlying) ────────────────────────────────────────────────
 LOT_SIZES = {
     "NIFTY": 75,
-    "BANKNIFTY": 15,
-    "FINNIFTY": 25,
-    "MIDCAPNIFTY": 50,
+    "BANKNIFTY": 30,
+    "FINNIFTY": 65,
+    "MIDCAPNIFTY": 120,
 }
 
 # ── Market Hours (IST) ────────────────────────────────────────────────────────
