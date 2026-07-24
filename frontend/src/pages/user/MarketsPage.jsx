@@ -163,11 +163,16 @@ export default function MarketsPage() {
   let spotPrice = 0;
   if (!isStock) {
     const keyMap = { "NIFTY": "NSE_INDEX|Nifty 50", "BANKNIFTY": "NSE_INDEX|Nifty Bank", "FINNIFTY": "NSE_INDEX|Nifty Fin Service", "MIDCAPNIFTY": "NSE_INDEX|NIFTY MID SELECT" }
+    const idx = indices.find(i => i.symbol === selectedUnderlying)
     const key = keyMap[selectedUnderlying]
-    spotPrice = liveData[key]?.ltpc?.ltp || liveData[key]?.last_price || indices.find(idx => idx.symbol === selectedUnderlying)?.ltp || 0
+    spotPrice = liveData[key]?.ltpc?.ltp || liveData[key]?.last_price || idx?.ltp || 0
   } else {
     const key = `NSE_EQ|${selectedUnderlying}`
     spotPrice = liveData[key]?.ltpc?.ltp || liveData[key]?.last_price || 0
+    if (spotPrice === 0) {
+      const fallbackStock = topStocks.gainers.find(s => s.symbol === selectedUnderlying) || topStocks.losers.find(s => s.symbol === selectedUnderlying)
+      if (fallbackStock) spotPrice = fallbackStock.ltp
+    }
   }
   
   let atmStrike = 0
