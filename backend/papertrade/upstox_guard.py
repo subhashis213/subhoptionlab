@@ -36,22 +36,25 @@ ALLOWED_UPSTOX_PATHS = frozenset([
 UPSTOX_BASE_URL = "https://api.upstox.com"
 
 
-def _get_access_token() -> Optional[str]:
+async def _get_access_token() -> Optional[str]:
     """Get Upstox access token from environment or database."""
     token = os.getenv("UPSTOX_ACCESS_TOKEN")
     if token and token != "mock_token":
         return token
         
     try:
-        from live.db import db as mongo_db
-        import base64
-        # Synchronous check via asyncio event loop if loop is running
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            # In async contexts, we can fetch synchronously from os.environ which is updated by broker_router
-            pass
-    except Exception:
-        pass
+        from live.db import broker_credentials_collection
+        from live.broker_router import _decrypt
+        if broker_credentials_collection is not None:
+            cred = await broker_credentials_collection.find_one({"user_id": "default_user", "broker": "upstox", "is_active": True})
+            if cred and cred.get("encrypted_access_token"):
+                decrypted = _decrypt(cred["encrypted_access_token"])
+                if decrypted:
+                    os.environ["UPSTOX_ACCESS_TOKEN"] = decrypted
+                    return decrypted
+    except Exception as e:
+        logger.error(f"Failed to fetch token from DB: {e}")
+        
     return None
 
 
@@ -72,7 +75,7 @@ async def fetch_ltp(instrument_keys: List[str]) -> Dict[str, float]:
     if not instrument_keys:
         return {}
 
-    token = _get_access_token()
+    token = await _get_access_token()
     if not token:
         logger.debug("No Upstox token available, returning empty LTP data.")
         return {}
@@ -101,6 +104,10 @@ async def fetch_ltp(instrument_keys: List[str]) -> Dict[str, float]:
                     if itoken:
                         result[itoken] = val
                         result[itoken.replace("|", ":")] = val
+            missing_keys = [k for k in instrument_keys if k not in result]
+            if missing_keys:
+                for mk in missing_keys:
+                    result[mk] = _generate_paper_fallback_ltp(mk)
             return result
         else:
             logger.warning(f"Upstox LTP API error: {response.status_code} {response.text[:200]}")
@@ -158,7 +165,7 @@ async def fetch_quotes(instrument_keys: List[str]) -> Dict[str, dict]:
     if not instrument_keys:
         return {}
 
-    token = _get_access_token()
+    token = await _get_access_token()
     if not token:
         logger.debug("No Upstox token available, returning empty quotes data.")
         return _generate_paper_fallback_quotes(instrument_keys)
@@ -175,7 +182,12 @@ async def fetch_quotes(instrument_keys: List[str]) -> Dict[str, dict]:
         )
 
         if response.status_code == 200:
-            return response.json().get("data", {})
+            data = response.json().get("data", {})
+            missing_keys = [k for k in instrument_keys if k not in data]
+            if missing_keys:
+                fallback_data = _generate_paper_fallback_quotes(missing_keys)
+                data.update(fallback_data)
+            return data
         else:
             logger.warning(f"Upstox quotes API error: {response.status_code} {response.text[:200]}")
             return _generate_paper_fallback_quotes(instrument_keys)
@@ -231,7 +243,7 @@ async def fetch_option_chain(instrument_key: str, expiry_date: str) -> dict:
     
     PAPER TRADE ONLY: This function calls /v2/option/chain (read-only).
     """
-    token = _get_access_token()
+    token = await _get_access_token()
     if not token:
         return {}
 
