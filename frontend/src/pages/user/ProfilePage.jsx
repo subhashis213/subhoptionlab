@@ -7,13 +7,21 @@ import { useAuth } from '../../context/AuthContext'
 import { historyApi } from '../../api/client'
 import {
   User, LogOut, Shield, History, Wallet, TrendingUp, TrendingDown,
-  Award, ChevronRight, Settings
+  Award, ChevronRight, Settings, Sun, Moon
 } from 'lucide-react'
 
 export default function ProfilePage() {
   const { user, logout, isAdmin } = useAuth()
   const navigate = useNavigate()
   const [stats, setStats] = useState(null)
+  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark')
+
+  const toggleTheme = () => {
+    const newTheme = theme === 'dark' ? 'light' : 'dark'
+    setTheme(newTheme)
+    document.documentElement.setAttribute('data-theme', newTheme)
+    localStorage.setItem('theme', newTheme)
+  }
 
   useEffect(() => {
     historyApi.stats().then(setStats).catch(() => null)
@@ -26,8 +34,20 @@ export default function ProfilePage() {
 
   return (
     <div className="page profile-page-container">
-      <div className="page-header">
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2>Profile</h2>
+        <button 
+          onClick={toggleTheme} 
+          className="btn-secondary"
+          style={{ 
+            display: 'flex', alignItems: 'center', gap: '8px', 
+            padding: '8px 12px', borderRadius: '8px' 
+          }}
+          title="Switch Dark / Light Theme"
+        >
+          {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+          <span>{theme === 'dark' ? 'Light' : 'Dark'} Mode</span>
+        </button>
       </div>
 
       {/* User Avatar Card */}

@@ -178,9 +178,6 @@ function Backtester() {
           <p className="tagline hide-on-mobile">Options Strategy Backtester & Precision Analytics</p>
         </div>
         <div className="header-right">
-          <button className="theme-switch-btn" onClick={toggleTheme} title="Switch Dark / Light Theme">
-            {theme === 'dark' ? '☀️ Light Mode' : '🌙 Dark Mode'}
-          </button>
           {dataInfo && dataInfo.options && Object.keys(dataInfo.options).length > 0 && (
             <div className="data-badge">
               <span className="badge-dot"></span>

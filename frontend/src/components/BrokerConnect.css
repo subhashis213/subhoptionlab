@@ -85,8 +85,8 @@
 
 /* Connection Card */
 .connection-card {
-  background: var(--card-bg, #1e2430);
-  border: 1px solid var(--border-color, #2b3345);
+  background: var(--bg-card, #1e2430);
+  border: 1px solid var(--border, #2b3345);
   border-radius: 12px;
   padding: 20px;
 }
@@ -158,8 +158,8 @@
 
 /* Step-by-Step Guide Card */
 .guide-card {
-  background: var(--card-bg, #1e2430);
-  border: 1px solid var(--border-color, #2b3345);
+  background: var(--bg-card, #1e2430);
+  border: 1px solid var(--border, #2b3345);
   border-radius: 12px;
   overflow: hidden;
 }
@@ -187,7 +187,7 @@
 
 .guide-body {
   padding: 20px;
-  border-top: 1px solid var(--border-color, #2b3345);
+  border-top: 1px solid var(--border, #2b3345);
 }
 
 .guide-intro {
@@ -263,8 +263,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px dashed var(--border-color, #2b3345);
+  background: var(--bg-hover, rgba(0, 0, 0, 0.3));
+  border: 1px dashed var(--border, #2b3345);
   padding: 8px 12px;
   border-radius: 6px;
   margin-top: 6px;
@@ -274,7 +274,7 @@
 .copy-box code {
   font-family: monospace;
   font-size: 0.82rem;
-  color: #38bdf8;
+  color: var(--primary, #38bdf8);
   word-break: break-all;
   flex: 1;
 }
@@ -298,8 +298,8 @@
 
 /* Credentials Card */
 .credentials-card {
-  background: var(--card-bg, #1e2430);
-  border: 1px solid var(--border-color, #2b3345);
+  background: var(--bg-card, #1e2430);
+  border: 1px solid var(--border, #2b3345);
   border-radius: 12px;
   padding: 20px;
 }
@@ -344,9 +344,9 @@
   width: 100%;
   padding: 10px 12px;
   border-radius: 6px;
-  border: 1px solid var(--border-color, #2b3345);
-  background: rgba(0, 0, 0, 0.25);
-  color: white;
+  border: 1px solid var(--border, #2b3345);
+  background: var(--bg, rgba(0, 0, 0, 0.25));
+  color: var(--text, white);
   font-family: monospace;
   font-size: 0.85rem;
 }
@@ -378,7 +378,7 @@
 .btn-secondary {
   background: rgba(255, 255, 255, 0.08);
   color: white;
-  border: 1px solid var(--border-color, #2b3345);
+  border: 1px solid var(--border, #2b3345);
   padding: 8px 14px;
   border-radius: 6px;
   font-weight: 500;
@@ -401,7 +401,7 @@
 }
 
 .manual-section {
-  border-top: 1px solid var(--border-color, #2b3345);
+  border-top: 1px solid var(--border, #2b3345);
   padding-top: 16px;
 }
 
@@ -426,7 +426,7 @@
   width: 100%;
   padding: 10px;
   border-radius: 6px;
-  border: 1px solid var(--border-color, #2b3345);
+  border: 1px solid var(--border, #2b3345);
   background: rgba(0, 0, 0, 0.25);
   color: white;
   font-family: monospace;
