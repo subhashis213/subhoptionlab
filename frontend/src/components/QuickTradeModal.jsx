@@ -10,6 +10,10 @@ export default function QuickTradeModal({ tradeDetails, onClose, onExecute }) {
   const [limitPrice, setLimitPrice] = useState('')
   const [lots, setLots] = useState(1)
   const [executionTime, setExecutionTime] = useState('')
+  const [slType, setSlType] = useState('points')
+  const [slValue, setSlValue] = useState('')
+  const [targetType, setTargetType] = useState('points')
+  const [targetValue, setTargetValue] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
@@ -31,10 +35,10 @@ export default function QuickTradeModal({ tradeDetails, onClose, onExecute }) {
       qty: parseInt(lots),
       order_type: orderType,
       limit_price: orderType === 'LIMIT' ? parseFloat(limitPrice) || 0 : 0,
-      sl_type: 'points',
-      sl_value: 0,
-      target_type: 'points',
-      target_value: 0,
+      sl_type: slType,
+      sl_value: parseFloat(slValue) || 0,
+      target_type: targetType,
+      target_value: parseFloat(targetValue) || 0,
       instrument_key: tradeDetails.instrument_key || null
     }
     
@@ -177,6 +181,31 @@ export default function QuickTradeModal({ tradeDetails, onClose, onExecute }) {
             </div>
           </div>
           <p className="field-hint" style={{ marginTop: '-8px', marginBottom: '16px' }}>Leave time empty for immediate Market execution.</p>
+
+          {/* Optional SL & Target */}
+          <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+            <div className="form-group" style={{ flex: 1, margin: 0 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                <label style={{ margin: 0, fontSize: '0.8rem' }}>Stop Loss</label>
+                <div className="toggle-group" style={{ margin: 0 }}>
+                  <button type="button" className={`toggle-option ${slType === 'points' ? 'active' : ''}`} onClick={() => setSlType('points')} style={{ padding: '1px 4px', fontSize: '0.7rem' }}>Pts</button>
+                  <button type="button" className={`toggle-option ${slType === 'percentage' ? 'active' : ''}`} onClick={() => setSlType('percentage')} style={{ padding: '1px 4px', fontSize: '0.7rem' }}>%</button>
+                </div>
+              </div>
+              <input type="number" className="form-control" placeholder="0" value={slValue} onChange={(e) => setSlValue(e.target.value)} style={{ padding: '6px' }} />
+            </div>
+
+            <div className="form-group" style={{ flex: 1, margin: 0 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                <label style={{ margin: 0, fontSize: '0.8rem' }}>Target</label>
+                <div className="toggle-group" style={{ margin: 0 }}>
+                  <button type="button" className={`toggle-option ${targetType === 'points' ? 'active' : ''}`} onClick={() => setTargetType('points')} style={{ padding: '1px 4px', fontSize: '0.7rem' }}>Pts</button>
+                  <button type="button" className={`toggle-option ${targetType === 'percentage' ? 'active' : ''}`} onClick={() => setTargetType('percentage')} style={{ padding: '1px 4px', fontSize: '0.7rem' }}>%</button>
+                </div>
+              </div>
+              <input type="number" className="form-control" placeholder="0" value={targetValue} onChange={(e) => setTargetValue(e.target.value)} style={{ padding: '6px' }} />
+            </div>
+          </div>
           
         </div>
 

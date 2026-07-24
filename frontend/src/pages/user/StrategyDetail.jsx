@@ -21,6 +21,12 @@ export default function StrategyDetail() {
   const [showTimeEdit, setShowTimeEdit] = useState(false)
   const [editStartTime, setEditStartTime] = useState('')
   const [editEndTime, setEditEndTime] = useState('')
+  const [selectedLegForEdit, setSelectedLegForEdit] = useState(null)
+  const [showSlTargetModal, setShowSlTargetModal] = useState(false)
+  const [slType, setSlType] = useState('points')
+  const [slValue, setSlValue] = useState('')
+  const [targetType, setTargetType] = useState('points')
+  const [targetValue, setTargetValue] = useState('')
 
   useEffect(() => {
     loadStrategy()
@@ -111,6 +117,33 @@ export default function StrategyDetail() {
         end_time: editEndTime
       })
       setShowTimeEdit(false)
+      await loadStrategy()
+    } catch (err) {
+      alert(err.message)
+    }
+    setActionLoading('')
+  }
+
+  const openSlTargetEdit = (leg) => {
+    setSelectedLegForEdit(leg)
+    setSlType(leg.sl_type || 'points')
+    setSlValue(leg.sl_value || '')
+    setTargetType(leg.target_type || 'points')
+    setTargetValue(leg.target_value || '')
+    setShowSlTargetModal(true)
+  }
+
+  const handleSaveSlTarget = async () => {
+    if (!selectedLegForEdit) return
+    setActionLoading(`sl_target_${selectedLegForEdit._id}`)
+    try {
+      await strategyApi.updateLegSLTarget(id, selectedLegForEdit._id, {
+        sl_type: slType,
+        sl_value: parseFloat(slValue) || 0,
+        target_type: targetType,
+        target_value: parseFloat(targetValue) || 0,
+      })
+      setShowSlTargetModal(false)
       await loadStrategy()
     } catch (err) {
       alert(err.message)
@@ -269,19 +302,33 @@ export default function StrategyDetail() {
                 </div>
 
                 {/* SL/Target Progress */}
-                <div className="sl-target-indicators">
-                  {leg.current_sl_price && (
-                    <div className="indicator sl">
-                      <span>SL: {leg.current_sl_price.toFixed(2)}</span>
-                      {slDist && <span className="dist">({slDist.toFixed(1)} away)</span>}
-                    </div>
-                  )}
-                  {leg.current_target_price && (
-                    <div className="indicator target">
-                      <span>TGT: {leg.current_target_price.toFixed(2)}</span>
-                      {tgtDist && <span className="dist">({tgtDist.toFixed(1)} away)</span>}
-                    </div>
-                  )}
+                <div className="sl-target-indicators" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '10px' }}>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    {leg.current_sl_price ? (
+                      <div className="indicator sl">
+                        <span>SL: {leg.current_sl_price.toFixed(2)} ({leg.sl_value}{leg.sl_type === 'percentage' ? '%' : 'pts'})</span>
+                        {slDist && <span className="dist">({slDist.toFixed(1)} away)</span>}
+                      </div>
+                    ) : (
+                      <span className="text-muted" style={{ fontSize: '0.8rem' }}>No SL</span>
+                    )}
+                    {leg.current_target_price ? (
+                      <div className="indicator target">
+                        <span>TGT: {leg.current_target_price.toFixed(2)} ({leg.target_value}{leg.target_type === 'percentage' ? '%' : 'pts'})</span>
+                        {tgtDist && <span className="dist">({tgtDist.toFixed(1)} away)</span>}
+                      </div>
+                    ) : (
+                      <span className="text-muted" style={{ fontSize: '0.8rem' }}>No Target</span>
+                    )}
+                  </div>
+
+                  <button
+                    className="btn-secondary-sm"
+                    onClick={() => openSlTargetEdit(leg)}
+                    style={{ fontSize: '0.78rem', padding: '4px 8px', minHeight: 'auto', display: 'flex', alignItems: 'center', gap: '4px' }}
+                  >
+                    <Edit3 size={12} /> Set SL/TGT
+                  </button>
                 </div>
               </div>
             )
@@ -371,6 +418,126 @@ export default function StrategyDetail() {
             {actionLoading === 'time' ? 'Saving...' : 'Save Timing'}
           </button>
         </div>
+      </BottomSheet>
+
+      {/* SL / Target Edit Modal */}
+      <BottomSheet
+        isOpen={showSlTargetModal}
+        onClose={() => setShowSlTargetModal(false)}
+        title={selectedLegForEdit ? `Set SL & Target (${selectedLegForEdit.strike} ${selectedLegForEdit.option_type})` : 'Set SL & Target'}
+      >
+        {selectedLegForEdit && (() => {
+          const entryP = selectedLegForEdit.entry_price || selectedLegForEdit.current_ltp || 0
+          const side = selectedLegForEdit.side
+          const valSL = parseFloat(slValue) || 0
+          const valTgt = parseFloat(targetValue) || 0
+
+          let calcSL = null
+          if (valSL > 0 && entryP > 0) {
+            calcSL = slType === 'points'
+              ? (side === 'BUY' ? entryP - valSL : entryP + valSL)
+              : (side === 'BUY' ? entryP * (1 - valSL / 100) : entryP * (1 + valSL / 100))
+          }
+
+          let calcTgt = null
+          if (valTgt > 0 && entryP > 0) {
+            calcTgt = targetType === 'points'
+              ? (side === 'BUY' ? entryP + valTgt : entryP - valTgt)
+              : (side === 'BUY' ? entryP * (1 + valTgt / 100) : entryP * (1 - valTgt / 100))
+          }
+
+          return (
+            <div className="sl-target-form" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ background: 'var(--bg)', padding: '12px', borderRadius: '8px', fontSize: '0.85rem' }}>
+                <div><strong>Side:</strong> {side} | <strong>Entry Price:</strong> ₹{entryP.toFixed(2)}</div>
+              </div>
+
+              {/* Stoploss Group */}
+              <div className="form-group">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label style={{ margin: 0 }}>Stop Loss</label>
+                  <div className="toggle-group" style={{ margin: 0 }}>
+                    <button
+                      type="button"
+                      className={`toggle-option ${slType === 'points' ? 'active' : ''}`}
+                      onClick={() => setSlType('points')}
+                      style={{ padding: '2px 8px', fontSize: '0.75rem' }}
+                    >
+                      Points
+                    </button>
+                    <button
+                      type="button"
+                      className={`toggle-option ${slType === 'percentage' ? 'active' : ''}`}
+                      onClick={() => setSlType('percentage')}
+                      style={{ padding: '2px 8px', fontSize: '0.75rem' }}
+                    >
+                      %
+                    </button>
+                  </div>
+                </div>
+                <input
+                  type="number"
+                  className="form-control"
+                  placeholder={slType === 'points' ? 'SL points (e.g. 20)' : 'SL % (e.g. 10)'}
+                  value={slValue}
+                  onChange={(e) => setSlValue(e.target.value)}
+                />
+                {calcSL !== null && (
+                  <span className="field-hint" style={{ color: 'var(--danger)' }}>
+                    Trigger SL Price: ₹{calcSL.toFixed(2)}
+                  </span>
+                )}
+              </div>
+
+              {/* Target Group */}
+              <div className="form-group">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label style={{ margin: 0 }}>Target</label>
+                  <div className="toggle-group" style={{ margin: 0 }}>
+                    <button
+                      type="button"
+                      className={`toggle-option ${targetType === 'points' ? 'active' : ''}`}
+                      onClick={() => setTargetType('points')}
+                      style={{ padding: '2px 8px', fontSize: '0.75rem' }}
+                    >
+                      Points
+                    </button>
+                    <button
+                      type="button"
+                      className={`toggle-option ${targetType === 'percentage' ? 'active' : ''}`}
+                      onClick={() => setTargetType('percentage')}
+                      style={{ padding: '2px 8px', fontSize: '0.75rem' }}
+                    >
+                      %
+                    </button>
+                  </div>
+                </div>
+                <input
+                  type="number"
+                  className="form-control"
+                  placeholder={targetType === 'points' ? 'Target points (e.g. 40)' : 'Target % (e.g. 20)'}
+                  value={targetValue}
+                  onChange={(e) => setTargetValue(e.target.value)}
+                />
+                {calcTgt !== null && (
+                  <span className="field-hint" style={{ color: 'var(--success)' }}>
+                    Trigger Target Price: ₹{calcTgt.toFixed(2)}
+                  </span>
+                )}
+              </div>
+
+              <div className="form-actions" style={{ marginTop: '12px' }}>
+                <button
+                  className="btn-primary btn-full"
+                  onClick={handleSaveSlTarget}
+                  disabled={!!actionLoading}
+                >
+                  {actionLoading ? 'Saving...' : 'Save SL & Target'}
+                </button>
+              </div>
+            </div>
+          )
+        })()}
       </BottomSheet>
     </div>
   )

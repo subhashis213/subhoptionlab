@@ -102,6 +102,7 @@ export const strategyApi = {
   close: (id) => apiFetch(`/api/pt/strategies/${id}/close`, { method: 'POST' }),
   delete: (id) => apiFetch(`/api/pt/strategies/${id}`, { method: 'DELETE' }),
   updateTimes: (id, payload) => apiFetch(`/api/pt/strategies/${id}/times`, { method: 'PUT', body: JSON.stringify(payload) }),
+  updateLegSLTarget: (stratId, legId, payload) => apiFetch(`/api/pt/strategies/${stratId}/legs/${legId}/sl-target`, { method: 'PUT', body: JSON.stringify(payload) }),
 }
 
 // Wallet API

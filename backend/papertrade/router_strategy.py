@@ -7,10 +7,9 @@ import uuid
 import logging
 import re
 from datetime import datetime
-from typing import Optional
-
+from typing import Optional, Literal
 from fastapi import APIRouter, HTTPException, Depends, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from papertrade import db
 from papertrade.auth import require_user
@@ -748,3 +747,77 @@ async def update_strategy_times(
     )
 
     return {"status": "success", "message": "Strategy times updated successfully"}
+
+
+# ── Update Leg SL & Target ───────────────────────────────────────────────────
+
+class UpdateLegSLTargetRequest(BaseModel):
+    sl_type: Literal["points", "percentage"] = "points"
+    sl_value: float = Field(0.0, ge=0)
+    target_type: Literal["points", "percentage"] = "points"
+    target_value: float = Field(0.0, ge=0)
+
+
+@router.put("/{strategy_id}/legs/{leg_id}/sl-target")
+async def update_leg_sl_target(
+    strategy_id: str,
+    leg_id: str,
+    req: UpdateLegSLTargetRequest,
+    user: dict = Depends(require_user)
+):
+    """Update Stoploss and Target for a specific leg of a strategy."""
+    strategy = await db.strategies_collection.find_one({
+        "_id": strategy_id,
+        "user_id": user["_id"],
+    })
+    if not strategy:
+        raise HTTPException(404, "Strategy not found")
+
+    leg = await db.strategy_legs_collection.find_one({
+        "_id": leg_id,
+        "strategy_id": strategy_id,
+    })
+    if not leg:
+        raise HTTPException(404, "Leg not found")
+
+    if leg.get("current_status") not in ("open", "pending_entry"):
+        raise HTTPException(400, "Can only update SL/Target for open or pending legs")
+
+    entry_price = float(leg.get("entry_price", 0))
+    side = leg.get("side", "BUY")
+
+    current_sl_price = None
+    if req.sl_value > 0 and entry_price > 0:
+        if req.sl_type == "points":
+            current_sl_price = entry_price - req.sl_value if side == "BUY" else entry_price + req.sl_value
+        else:
+            current_sl_price = entry_price * (1 - req.sl_value / 100) if side == "BUY" else entry_price * (1 + req.sl_value / 100)
+
+    current_target_price = None
+    if req.target_value > 0 and entry_price > 0:
+        if req.target_type == "points":
+            current_target_price = entry_price + req.target_value if side == "BUY" else entry_price - req.target_value
+        else:
+            current_target_price = entry_price * (1 + req.target_value / 100) if side == "BUY" else entry_price * (1 - req.target_value / 100)
+
+    update_fields = {
+        "sl_type": req.sl_type,
+        "sl_value": req.sl_value,
+        "target_type": req.target_type,
+        "target_value": req.target_value,
+        "current_sl_price": round(current_sl_price, 2) if current_sl_price is not None else None,
+        "current_target_price": round(current_target_price, 2) if current_target_price is not None else None,
+    }
+
+    await db.strategy_legs_collection.update_one(
+        {"_id": leg_id},
+        {"$set": update_fields}
+    )
+
+    return {
+        "status": "success",
+        "message": "Leg SL & Target updated successfully",
+        "leg_id": leg_id,
+        "current_sl_price": round(current_sl_price, 2) if current_sl_price is not None else None,
+        "current_target_price": round(current_target_price, 2) if current_target_price is not None else None,
+    }
