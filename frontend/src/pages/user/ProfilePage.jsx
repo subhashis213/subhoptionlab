@@ -7,9 +7,8 @@ import { useAuth } from '../../context/AuthContext'
 import { historyApi } from '../../api/client'
 import {
   User, LogOut, Shield, History, Wallet, TrendingUp, TrendingDown,
-  Award, ChevronRight, CheckCircle2
+  Award, ChevronRight, Settings
 } from 'lucide-react'
-import BrokerConnect from '../../components/BrokerConnect'
 
 export default function ProfilePage() {
   const { user, logout, isAdmin } = useAuth()
@@ -97,12 +96,19 @@ export default function ProfilePage() {
             </div>
             <ChevronRight size={18} className="text-muted" />
           </div>
+          <div className="profile-menu-item" onClick={() => navigate('/broker-integration')}>
+            <div className="menu-item-left">
+              <div className="menu-icon-box" style={{ background: 'rgba(255,165,0,0.1)', color: 'orange' }}>
+                <Settings size={20} />
+              </div>
+              <div className="menu-item-text">
+                <strong>Broker Integration</strong>
+                <p>Connect Upstox for live market data</p>
+              </div>
+            </div>
+            <ChevronRight size={18} className="text-muted" />
+          </div>
         </div>
-      </div>
-
-      {/* Broker Integration & Setup Guide */}
-      <div className="section" style={{ marginTop: '20px' }}>
-        <BrokerConnect />
       </div>
 
       {/* Account Info Section */}

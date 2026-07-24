@@ -14,6 +14,7 @@ import HistoryPage from './pages/user/HistoryPage'
 import ProfilePage from './pages/user/ProfilePage'
 import TradeHistoryPage from './pages/user/TradeHistoryPage'
 import MarketsPage from './pages/user/MarketsPage'
+import BrokerIntegrationPage from './pages/user/BrokerIntegrationPage'
 
 import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminUsers from './pages/admin/AdminUsers'
@@ -51,6 +52,7 @@ export default function App() {
           <Route path="/strategies/:id" element={<StrategyDetail />} />
           <Route path="/trade-history" element={<TradeHistoryPage />} />
           <Route path="/backtester" element={<Backtester />} />
+          <Route path="/broker-integration" element={<BrokerIntegrationPage />} />
         </Route>
 
         {/* Admin Routes (with BottomNav) */}
