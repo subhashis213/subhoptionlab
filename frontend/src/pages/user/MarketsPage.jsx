@@ -294,21 +294,54 @@ export default function MarketsPage() {
         </div>
       </div>
 
+      {/* Cash Market Section */}
+      {isStock && (
+        <div className="card markets-card" style={{ marginBottom: '24px' }}>
+          <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+            <div>
+              <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {selectedUnderlying} <span style={{ fontSize: '0.8rem', color: 'var(--primary)', background: 'var(--primary-light)', padding: '2px 8px', borderRadius: '4px' }}>EQUITY</span>
+              </h3>
+            </div>
+            {spotPrice > 0 ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '24px', flexWrap: 'wrap' }}>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>₹{spotPrice.toFixed(2)}</div>
+                </div>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button 
+                    className="btn-primary" 
+                    style={{ padding: '10px 24px', background: 'var(--success)', borderColor: 'var(--success)', fontSize: '1rem', fontWeight: 600 }}
+                    onClick={() => {
+                       setSelectedTrade({ strike: 0, type: 'EQ', ltp: spotPrice, symbol: selectedUnderlying, expiry: '', instrument_key: `NSE_EQ|${selectedUnderlying}`, initialAction: 'BUY' })
+                    }}
+                  >
+                    BUY STOCK
+                  </button>
+                  <button 
+                    className="btn-primary" 
+                    style={{ padding: '10px 24px', background: 'var(--danger)', borderColor: 'var(--danger)', fontSize: '1rem', fontWeight: 600 }}
+                    onClick={() => {
+                       setSelectedTrade({ strike: 0, type: 'EQ', ltp: spotPrice, symbol: selectedUnderlying, expiry: '', instrument_key: `NSE_EQ|${selectedUnderlying}`, initialAction: 'SELL' })
+                    }}
+                  >
+                    SELL STOCK
+                  </button>
+                </div>
+              </div>
+            ) : (
+               <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Waiting for live quote...</span>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Option Chain Section */}
       <div className="card markets-card">
         <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
             <h3 style={{ margin: 0 }}>{selectedUnderlying} {isStock ? 'Stock Option Chain' : 'Option Chain'}</h3>
             {spotPrice > 0 && <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Live Spot: <span style={{ color: 'var(--text)', fontWeight: 600 }}>{spotPrice.toFixed(2)}</span></span>}
-            {isStock && spotPrice > 0 && (
-              <button 
-                className="btn-primary" 
-                style={{ padding: '4px 12px', fontSize: '0.8rem' }}
-                onClick={() => setSelectedTrade({ strike: 0, type: 'EQ', ltp: spotPrice, symbol: selectedUnderlying, expiry: '', instrument_key: `NSE_EQ|${selectedUnderlying}` })}
-              >
-                Trade Stock
-              </button>
-            )}
           </div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Expiry:</span>

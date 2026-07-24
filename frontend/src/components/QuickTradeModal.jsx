@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { X, Play, Clock } from 'lucide-react'
 import { strategyApi } from '../api/client'
@@ -19,7 +19,14 @@ export default function QuickTradeModal({ tradeDetails, onClose, onExecute }) {
 
   if (!tradeDetails) return null
 
-  const { strike, type, ltp, symbol, expiry } = tradeDetails
+  const { strike, type, ltp, symbol, expiry, initialAction } = tradeDetails || {}
+
+  // Update action when tradeDetails changes
+  useEffect(() => {
+    if (initialAction) {
+      setAction(initialAction)
+    }
+  }, [initialAction])
 
   const handleExecute = async () => {
     setLoading(true)
