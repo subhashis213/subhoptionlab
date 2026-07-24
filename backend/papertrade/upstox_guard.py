@@ -136,7 +136,8 @@ async def fetch_quotes(instrument_keys: List[str]) -> Dict[str, dict]:
 
     token = _get_access_token()
     if not token:
-        return {}
+        logger.debug("No Upstox token available, returning empty quotes data.")
+        return _generate_paper_fallback_quotes(instrument_keys)
 
     try:
         instruments_str = ",".join(instrument_keys)
@@ -152,12 +153,23 @@ async def fetch_quotes(instrument_keys: List[str]) -> Dict[str, dict]:
         if response.status_code == 200:
             return response.json().get("data", {})
         else:
-            logger.warning(f"Upstox quotes API error: {response.status_code}")
-            return {}
+            logger.warning(f"Upstox quotes API error: {response.status_code} {response.text[:200]}")
+            return _generate_paper_fallback_quotes(instrument_keys)
 
     except Exception as e:
         logger.error(f"Error fetching quotes from Upstox: {e}")
-        return {}
+        return _generate_paper_fallback_quotes(instrument_keys)
+
+def _generate_paper_fallback_quotes(keys: List[str]) -> Dict[str, dict]:
+    result = {}
+    for k in keys:
+        ltp = _generate_paper_fallback_ltp(k)
+        result[k] = {
+            "last_price": ltp,
+            "net_change": 0.0,
+            "ohlc": {"close": ltp}
+        }
+    return result
 
 
 async def fetch_option_chain(instrument_key: str, expiry_date: str) -> dict:
