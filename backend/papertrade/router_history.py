@@ -117,7 +117,7 @@ async def get_closed_strategies(
     user: dict = Depends(require_user),
 ):
     """List closed strategies with P&L summary."""
-    from config import LOT_SIZES
+    from data.stock_registry import get_lot_size
 
     cursor = (
         db.strategies_collection

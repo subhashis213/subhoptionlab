@@ -132,6 +132,13 @@ def _generate_paper_fallback_ltp(key: str) -> float:
         if "NSE_INDEX" in key_str: ticker = "^CNXFIN"
     elif "MIDCAPNIFTY" in key_str:
         if "NSE_INDEX" in key_str: ticker = "^NSEMDCP50"
+    elif "NSE_EQ" in key_str or key_str.isalpha():
+        # Clean symbol
+        sym = key_str.replace("NSE_EQ|", "")
+        if "INE" in sym: # It's an ISIN, we might not have the symbol, skip or rely on symbol being passed
+            pass
+        else:
+            ticker = f"{sym}.NS"
         
     if ticker:
         try:
@@ -209,6 +216,10 @@ def _generate_paper_fallback_quotes(keys: List[str]) -> Dict[str, dict]:
             ticker = "^CNXFIN"
         elif "MIDCAPNIFTY" in key_str:
             ticker = "^NSEMDCP50"
+        elif "NSE_EQ" in key_str or key_str.isalpha():
+            sym = key_str.replace("NSE_EQ|", "")
+            if "INE" not in sym:
+                ticker = f"{sym}.NS"
             
         quote_data = None
         if ticker and "NSE_INDEX" in key_str:

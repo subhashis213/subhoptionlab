@@ -16,7 +16,7 @@ from papertrade.auth import require_user
 from papertrade.models import StrategyCreate, StrategyResponse
 from papertrade.upstox_guard import fetch_ltp, build_instrument_key, resolve_instrument_keys
 from papertrade.router_markets import INDICES
-from config import LOT_SIZES
+from data.stock_registry import get_lot_size
 
 logger = logging.getLogger(__name__)
 

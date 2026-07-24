@@ -74,11 +74,15 @@ async def get_option_chain(underlying: str, expiry: str, user: dict = Depends(re
     Returns realistic mock data if Upstox API fails.
     """
     try:
-        # e.g., NSE_INDEX|Nifty Bank
         instrument_key = INDICES.get(underlying, f"NSE_INDEX|{underlying}")
         
-        # In a real scenario we'd use fetch_option_chain
-        # We will attempt it, but fallback if empty
+        # Check if stock
+        if not instrument_key.startswith("NSE_INDEX"):
+            from data.stock_registry import search_stocks
+            stocks = search_stocks(underlying, 1)
+            if stocks and stocks[0]["symbol"] == underlying.upper():
+                instrument_key = f"NSE_EQ|{underlying}"
+
         upstox_chain = await fetch_option_chain(instrument_key, expiry)
         
         if upstox_chain:
@@ -91,27 +95,33 @@ async def get_option_chain(underlying: str, expiry: str, user: dict = Depends(re
     except Exception as e:
         logger.error(f"Error fetching option chain: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch option chain")
-from fastapi import APIRouter, Depends
-from typing import List
-import asyncio
-import requests
-import logging
-from .upstox_guard import _get_access_token, _make_headers, UPSTOX_BASE_URL
-from .router_markets import router, INDICES
 
-logger = logging.getLogger(__name__)
+@router.get("/stocks/search")
+async def get_stocks_search(q: str = "", limit: int = 10):
+    """Search F&O stocks with autocomplete."""
+    from data.stock_registry import search_stocks
+    return search_stocks(q, limit)
 
-@router.get("/expiries", response_model=List[str])
+@router.get("/expiries")
 async def get_valid_expiries(underlying: str):
     instrument_key = INDICES.get(underlying, f"NSE_INDEX|{underlying}")
-    token = _get_access_token()
+    
+    # Check if stock instead
+    if not instrument_key.startswith("NSE_INDEX"):
+        from data.stock_registry import search_stocks
+        stocks = search_stocks(underlying, 1)
+        if stocks and stocks[0]["symbol"] == underlying.upper():
+            instrument_key = f"NSE_EQ|{underlying}" # Needs actual ISIN or FO key but we can try 
+            
+    from .upstox_guard import _get_access_token
+    token = await _get_access_token()
     if not token:
         return ["2026-07-28", "2026-08-25"] # Fallback
     
     try:
         from .upstox_guard import fetch_option_chain
         expiries = set()
-        keywords = ["current_week", "next_week", "current_month", "next_month", "far_month"]
+        keywords = ["current_month", "next_month"] if "NSE_EQ" in instrument_key else ["current_week", "next_week", "current_month"]
         for kw in keywords:
             chain_data = await fetch_option_chain(instrument_key, kw)
             if chain_data:

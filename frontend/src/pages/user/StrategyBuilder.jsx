@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 
 const UNDERLYINGS = ['NIFTY', 'BANKNIFTY', 'FINNIFTY', 'MIDCAPNIFTY']
-const LOT_SIZES = { NIFTY: 75, BANKNIFTY: 30, FINNIFTY: 65, MIDCAPNIFTY: 120 }
+import { getLotSize } from '../../utils/stockRegistry'
 
 export default function StrategyBuilder() {
   const navigate = useNavigate()
@@ -213,7 +213,7 @@ export default function StrategyBuilder() {
                   onClick={() => setStrategy({ ...strategy, underlying: u })}
                 >
                   {u}
-                  <span className="chip-sub">Lot: {LOT_SIZES[u]}</span>
+                  <span className="chip-sub">Lot: {getLotSize(u)}</span>
                 </button>
               ))}
             </div>
@@ -331,7 +331,7 @@ export default function StrategyBuilder() {
               <div className="review-leg-main">
                 <span className={`side-badge ${leg.side.toLowerCase()}`}>{leg.side}</span>
                 <span className="leg-strike-title">{leg.strike} {leg.option_type}</span>
-                <span className="leg-qty-tag">{leg.qty} Lot{leg.qty > 1 ? 's' : ''} ({leg.qty * LOT_SIZES[strategy.underlying]} Qty)</span>
+                <span className="leg-qty-tag">{leg.qty} Lot{leg.qty > 1 ? 's' : ''} ({leg.qty * getLotSize(strategy.underlying)} Qty)</span>
               </div>
               <div className="review-leg-sl">
                 {leg.sl_value > 0 && <span className="sl-badge">SL: {leg.sl_value}{leg.sl_type === 'percentage' ? '%' : ' pts'}</span>}
@@ -473,7 +473,7 @@ export default function StrategyBuilder() {
               <span>{legForm.qty}</span>
               <button onClick={() => setLegForm({ ...legForm, qty: legForm.qty + 1 })}>+</button>
             </div>
-            <p className="field-hint">= {legForm.qty * LOT_SIZES[strategy.underlying]} total quantity</p>
+            <p className="field-hint">= {legForm.qty * getLotSize(strategy.underlying)} total quantity</p>
           </div>
 
           {/* SL Config */}

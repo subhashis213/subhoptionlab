@@ -10,7 +10,7 @@ import {
 } from 'lucide-react'
 import BottomSheet from '../../components/BottomSheet'
 
-const LOT_SIZES = { NIFTY: 75, BANKNIFTY: 30, FINNIFTY: 65, MIDCAPNIFTY: 120 }
+import { getLotSize } from '../../utils/stockRegistry'
 
 export default function StrategyDetail() {
   const { id } = useParams()
@@ -251,7 +251,7 @@ export default function StrategyDetail() {
           {openLegs.map((leg) => {
             const entry = leg.entry_price || 0
             const current = leg.current_ltp || entry
-            const lotSize = LOT_SIZES[leg.symbol || strategy.underlying] || 50
+            const lotSize = getLotSize(leg.symbol || strategy.underlying)
             const totalQty = (leg.qty || 1) * lotSize
             const pnl = leg.side === 'BUY'
               ? (current - entry) * totalQty
@@ -345,7 +345,7 @@ export default function StrategyDetail() {
           {closedLegs.map((leg) => {
             const entry = leg.entry_price || 0
             const exit = leg.exit_price || entry
-            const lotSize = LOT_SIZES[leg.symbol || strategy.underlying] || 50
+            const lotSize = getLotSize(leg.symbol || strategy.underlying)
             const totalQty = (leg.qty || 1) * lotSize
             const pnl = leg.side === 'BUY'
               ? (exit - entry) * totalQty

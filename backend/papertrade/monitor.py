@@ -16,7 +16,7 @@ from datetime import datetime, timezone, timedelta
 from papertrade import db
 from papertrade.upstox_guard import fetch_ltp, build_instrument_key
 from papertrade.router_markets import INDICES
-from config import LOT_SIZES
+from data.stock_registry import get_lot_size
 import re
 
 logger = logging.getLogger(__name__)

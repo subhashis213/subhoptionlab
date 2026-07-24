@@ -47,9 +47,9 @@ async def get_wallet(user: dict = Depends(require_user)):
             current = leg.get("current_ltp", entry)
             qty_lots = leg.get("qty", 1)
             # Lot size lookup
-            from config import LOT_SIZES
+            from data.stock_registry import get_lot_size
             underlying = leg.get("symbol", "NIFTY")
-            lot_size = LOT_SIZES.get(underlying, 50)
+            lot_size = get_lot_size(underlying)
             total_qty = qty_lots * lot_size
 
             if leg["side"] == "BUY":

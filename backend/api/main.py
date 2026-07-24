@@ -83,11 +83,13 @@ async def startup_event():
     from papertrade.db import init_papertrade_collections
     from papertrade.monitor import monitor_service
     from papertrade.websocket_manager import ws_manager
+    from papertrade.live_feed_hub import live_feed_hub
 
     await init_papertrade_collections(mongo_db)
     monitor_service.set_ws_manager(ws_manager)
     monitor_service.start()
-    logger.info("Paper trading platform initialized (monitor + WebSocket manager).")
+    await live_feed_hub.start()
+    logger.info("Paper trading platform initialized (monitor + WebSocket manager + LiveFeedHub).")
 
     try:
         # Step 1: Parse real raw bhavcopy CSVs into Parquet (exact NSE prices) — fast
@@ -493,6 +495,52 @@ async def papertrade_websocket(websocket: WS, token: str):
             await websocket.close(code=4001, reason=str(e))
         except Exception:
             pass
+
+
+@app.websocket("/ws/live-market")
+async def live_market_websocket(websocket: WS):
+    """Pure Live Real-Time Market Data WebSocket"""
+    from papertrade.live_feed_hub import live_feed_hub
+    await websocket.accept()
+    
+    q = live_feed_hub.register_client()
+    
+    async def send_data():
+        try:
+            while True:
+                msg = await q.get()
+                await websocket.send_json(msg)
+        except Exception:
+            pass
+
+    async def receive_cmds():
+        try:
+            while True:
+                data = await websocket.receive_text()
+                msg = _json.loads(data)
+                action = msg.get("action")
+                keys = msg.get("keys", [])
+                if action == "subscribe" and keys:
+                    live_feed_hub.subscribe_keys(keys)
+                elif action == "unsubscribe" and keys:
+                    live_feed_hub.unsubscribe_keys(keys)
+                elif msg.get("type") == "ping":
+                    await websocket.send_json({"type": "pong"})
+        except Exception:
+            pass
+
+    send_task = asyncio.create_task(send_data())
+    recv_task = asyncio.create_task(receive_cmds())
+    
+    try:
+        done, pending = await asyncio.wait(
+            [send_task, recv_task], 
+            return_when=asyncio.FIRST_COMPLETED
+        )
+        for task in pending:
+            task.cancel()
+    finally:
+        live_feed_hub.unregister_client(q)
 
 
 if __name__ == "__main__":

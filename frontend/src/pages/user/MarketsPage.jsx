@@ -1,15 +1,19 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { marketsApi } from '../../api/client'
-import { TrendingUp, TrendingDown, RefreshCw } from 'lucide-react'
+import { TrendingUp, TrendingDown, RefreshCw, Search } from 'lucide-react'
 import QuickTradeModal from '../../components/QuickTradeModal'
+import useMarketStream from '../../hooks/useMarketStream'
 
 export default function MarketsPage() {
   const [indices, setIndices] = useState([])
   const [loadingIndices, setLoadingIndices] = useState(true)
   
   const [selectedUnderlying, setSelectedUnderlying] = useState('BANKNIFTY')
-  // For mock expiry we just use a hardcoded or today's date + some days, 
-  // since the backend mock generates it anyway.
+  const [isStock, setIsStock] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState([])
+  const [isSearching, setIsSearching] = useState(false)
+
   const [expiry, setExpiry] = useState('')
   const [availableExpiries, setAvailableExpiries] = useState([]) 
   
@@ -17,113 +21,129 @@ export default function MarketsPage() {
   const [loadingChain, setLoadingChain] = useState(true)
   
   const [selectedTrade, setSelectedTrade] = useState(null)
-  const [isRefreshing, setIsRefreshing] = useState(false)
   
   const atmRowRef = useRef(null)
   const hasScrolledToATM = useRef(false)
 
-  const handleManualRefresh = async () => {
-    setIsRefreshing(true)
-    await Promise.all([fetchIndices(), fetchOptionChain()])
-    setTimeout(() => setIsRefreshing(false), 600)
-  }
+  // Determine what keys to subscribe to via WebSockets
+  const wsKeys = useMemo(() => {
+    let keys = []
+    if (indices.length > 0) {
+      indices.forEach(idx => {
+        const keyMap = { "NIFTY": "NSE_INDEX|Nifty 50", "BANKNIFTY": "NSE_INDEX|Nifty Bank", "FINNIFTY": "NSE_INDEX|Nifty Fin Service", "MIDCAPNIFTY": "NSE_INDEX|NIFTY MID SELECT" }
+        keys.push(keyMap[idx.symbol] || `NSE_INDEX|${idx.symbol}`)
+      })
+    }
+    if (isStock) {
+      keys.push(`NSE_EQ|${selectedUnderlying}`)
+    }
+    
+    // Add option chain keys
+    if (optionChain.length > 0) {
+      optionChain.forEach(row => {
+        if (row.call_options?.instrument_key) keys.push(row.call_options.instrument_key)
+        if (row.put_options?.instrument_key) keys.push(row.put_options.instrument_key)
+      })
+    }
+    return keys;
+  }, [indices, optionChain, isStock, selectedUnderlying])
 
-  const fetchIndices = async (isPolling = false) => {
+  const liveData = useMarketStream(wsKeys)
+
+  const fetchIndices = async () => {
     try {
+      setLoadingIndices(true)
       const data = await marketsApi.indices()
       setIndices(data)
     } catch (err) {
       console.error('Error fetching indices', err)
     } finally {
-      if (!isPolling) setLoadingIndices(false)
+      setLoadingIndices(false)
     }
   }
 
-  const fetchOptionChain = async (isPolling = false) => {
+  const fetchOptionChain = async () => {
     if (!expiry) return;
     try {
-      if (!isPolling) setLoadingChain(true)
+      setLoadingChain(true)
       const data = await marketsApi.optionChain(selectedUnderlying, expiry)
       setOptionChain(data)
     } catch (err) {
       console.error('Error fetching option chain', err)
     } finally {
-      if (!isPolling) setLoadingChain(false)
+      setLoadingChain(false)
     }
   }
 
-  // Polling for indices
-  useEffect(() => {
-    let timeoutId;
-    let isMounted = true;
-    
-    const pollIndices = async () => {
-      if (!isMounted) return;
-      await fetchIndices(true);
-      if (isMounted) {
-        timeoutId = setTimeout(pollIndices, 1500); // 1.5s interval after previous request finishes
+  const handleSearch = async (e) => {
+    const q = e.target.value
+    setSearchQuery(q)
+    if (q.length > 1) {
+      setIsSearching(true)
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/pt/markets/stocks/search?q=${q}`)
+        if (res.ok) {
+          const data = await res.json()
+          setSearchResults(data)
+        }
+      } catch (err) {
+        console.error(err)
       }
-    };
-    
-    fetchIndices(); // Initial load
-    timeoutId = setTimeout(pollIndices, 1500);
-    
-    return () => {
-      isMounted = false;
-      clearTimeout(timeoutId);
+    } else {
+      setSearchResults([])
+      setIsSearching(false)
     }
+  }
+
+  const selectStock = (stockSymbol) => {
+    setIsStock(true)
+    setSelectedUnderlying(stockSymbol)
+    setSearchQuery('')
+    setSearchResults([])
+    setIsSearching(false)
+  }
+
+  useEffect(() => {
+    fetchIndices()
   }, [])
 
-  // Refetch option chain when underlying or expiry changes, and poll
-  // Fetch dynamic expiries when underlying changes
   useEffect(() => {
     const fetchExpiries = async () => {
       try {
         const data = await marketsApi.expiries(selectedUnderlying)
         if (data && data.length > 0) {
           setAvailableExpiries(data)
-          setExpiry(data[0]) // Select first expiry by default
+          setExpiry(data[0]) 
         } else {
-          // Fallbacks if API fails
           setAvailableExpiries(['2026-07-28', '2026-08-25'])
           setExpiry('2026-07-28')
         }
       } catch (err) {
         console.error('Failed to fetch expiries', err)
-        setAvailableExpiries(['2026-07-28', '2026-08-25'])
-        setExpiry('2026-07-28')
       }
     }
     fetchExpiries()
-    hasScrolledToATM.current = false // Reset scroll on underlying change
+    hasScrolledToATM.current = false 
   }, [selectedUnderlying])
 
   useEffect(() => {
-    hasScrolledToATM.current = false // Reset scroll on expiry change
+    hasScrolledToATM.current = false 
   }, [expiry])
 
   useEffect(() => {
-    let timeoutId;
-    let isMounted = true;
-
-    const pollChain = async () => {
-      if (!isMounted) return;
-      await fetchOptionChain(true);
-      if (isMounted) {
-        timeoutId = setTimeout(pollChain, 2000); // 2s interval for option chain to reduce heavy load
-      }
-    };
-
-    fetchOptionChain(); // Initial load
-    timeoutId = setTimeout(pollChain, 2000);
-
-    return () => {
-      isMounted = false;
-      clearTimeout(timeoutId);
-    }
+    fetchOptionChain()
   }, [selectedUnderlying, expiry])
 
-  const spotPrice = indices.find(idx => idx.symbol === selectedUnderlying)?.ltp || 0
+  // Process live spot price for selected underlying
+  let spotPrice = 0;
+  if (!isStock) {
+    const keyMap = { "NIFTY": "NSE_INDEX|Nifty 50", "BANKNIFTY": "NSE_INDEX|Nifty Bank", "FINNIFTY": "NSE_INDEX|Nifty Fin Service", "MIDCAPNIFTY": "NSE_INDEX|NIFTY MID SELECT" }
+    const key = keyMap[selectedUnderlying]
+    spotPrice = liveData[key]?.ltpc?.ltp || liveData[key]?.last_price || indices.find(idx => idx.symbol === selectedUnderlying)?.ltp || 0
+  } else {
+    const key = `NSE_EQ|${selectedUnderlying}`
+    spotPrice = liveData[key]?.ltpc?.ltp || liveData[key]?.last_price || 0
+  }
   
   let atmStrike = 0
   if (spotPrice && optionChain.length > 0) {
@@ -132,7 +152,6 @@ export default function MarketsPage() {
     }).strike_price
   }
 
-  // Scroll to ATM row on load
   useEffect(() => {
     if (!loadingChain && atmRowRef.current && !hasScrolledToATM.current) {
       atmRowRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -144,13 +163,35 @@ export default function MarketsPage() {
     <div className="page pb-20">
       <div className="markets-header-bar">
         <h2>Live Markets</h2>
-        <button 
-          className={`btn-refresh-icon ${isRefreshing ? 'spinning' : ''}`} 
-          onClick={handleManualRefresh}
-          title="Refresh Market Data"
-        >
-          <RefreshCw size={18} />
-        </button>
+        <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
+           {/* F&O Search */}
+           <div style={{ position: 'relative' }}>
+             <div className="form-control" style={{display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 8px'}}>
+               <Search size={16} color="var(--text-muted)" />
+               <input 
+                 type="text" 
+                 placeholder="Search F&O Stocks..." 
+                 value={searchQuery}
+                 onChange={handleSearch}
+                 style={{ border: 'none', background: 'transparent', color: 'var(--text)', outline: 'none', width: '150px' }}
+               />
+             </div>
+             {searchResults.length > 0 && (
+               <div style={{ position: 'absolute', top: '100%', right: 0, width: '250px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', zIndex: 50, marginTop: '4px', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}>
+                 {searchResults.map(stock => (
+                   <div 
+                     key={stock.symbol}
+                     onClick={() => selectStock(stock.symbol)}
+                     style={{ padding: '12px', borderBottom: '1px solid var(--border)', cursor: 'pointer', display: 'flex', justifyContent: 'space-between' }}
+                   >
+                     <span style={{ fontWeight: 600 }}>{stock.symbol}</span>
+                     <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Lot: {stock.lot_size}</span>
+                   </div>
+                 ))}
+               </div>
+             )}
+           </div>
+        </div>
       </div>
 
       {/* Indices Watchlist Carousel */}
@@ -158,28 +199,33 @@ export default function MarketsPage() {
         {loadingIndices && indices.length === 0 ? (
           <p>Loading market data...</p>
         ) : (
-          indices.map((idx) => (
+          indices.map((idx) => {
+            const keyMap = { "NIFTY": "NSE_INDEX|Nifty 50", "BANKNIFTY": "NSE_INDEX|Nifty Bank", "FINNIFTY": "NSE_INDEX|Nifty Fin Service", "MIDCAPNIFTY": "NSE_INDEX|NIFTY MID SELECT" }
+            const liveInfo = liveData[keyMap[idx.symbol]]
+            const currentLtp = liveInfo?.ltpc?.ltp || liveInfo?.last_price || idx.ltp
+            
+            return (
             <div 
               key={idx.symbol} 
-              className={`stat-card ${selectedUnderlying === idx.symbol ? 'selected-idx' : ''}`}
-              onClick={() => setSelectedUnderlying(idx.symbol)}
+              className={`stat-card ${!isStock && selectedUnderlying === idx.symbol ? 'selected-idx' : ''}`}
+              onClick={() => { setIsStock(false); setSelectedUnderlying(idx.symbol) }}
               style={{ 
                 cursor: 'pointer', 
-                border: selectedUnderlying === idx.symbol ? '2px solid var(--primary)' : '2px solid transparent'
+                border: !isStock && selectedUnderlying === idx.symbol ? '2px solid var(--primary)' : '2px solid transparent'
               }}
             >
               <div className="stat-header">
                 <h3>{idx.symbol}</h3>
               </div>
               <div className="stat-value" style={{ fontSize: '1.4rem' }}>
-                {idx.ltp.toFixed(2)}
+                {currentLtp.toFixed(2)}
               </div>
               <div className={`stat-change ${idx.change >= 0 ? 'profit' : 'loss'}`}>
                 {idx.change >= 0 ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
                 <span>{idx.change} ({idx.change_percent}%)</span>
               </div>
             </div>
-          ))
+          )})
         )}
       </div>
 
@@ -187,8 +233,8 @@ export default function MarketsPage() {
       <div className="card markets-card">
         <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <h3 style={{ margin: 0 }}>{selectedUnderlying} Option Chain</h3>
-            {spotPrice > 0 && <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Spot: <span style={{ color: 'var(--text)', fontWeight: 600 }}>{spotPrice.toFixed(2)}</span></span>}
+            <h3 style={{ margin: 0 }}>{selectedUnderlying} {isStock ? 'Stock Option Chain' : 'Option Chain'}</h3>
+            {spotPrice > 0 && <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Live Spot: <span style={{ color: 'var(--text)', fontWeight: 600 }}>{spotPrice.toFixed(2)}</span></span>}
           </div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Expiry:</span>
@@ -232,6 +278,12 @@ export default function MarketsPage() {
                     const isCallITM = spotPrice > 0 && row.strike_price < spotPrice;
                     const isPutITM = spotPrice > 0 && row.strike_price > spotPrice;
                     const isATM = row.strike_price === atmStrike;
+                    
+                    const ceKey = row.call_options?.instrument_key
+                    const peKey = row.put_options?.instrument_key
+                    
+                    const ceLtp = ceKey && liveData[ceKey] ? (liveData[ceKey].ltpc?.ltp || liveData[ceKey].last_price) : row.call_options?.market_data?.ltp
+                    const peLtp = peKey && liveData[peKey] ? (liveData[peKey].ltpc?.ltp || liveData[peKey].last_price) : row.put_options?.market_data?.ltp
 
                     return (
                       <tr 
@@ -240,15 +292,17 @@ export default function MarketsPage() {
                         ref={isATM ? atmRowRef : null}
                       >
                         {/* Calls */}
-                        <td className={`center ${isCallITM ? 'oc-itm' : ''}`} style={{ color: 'var(--text-muted)' }}>{row.call_options.market_data.oi}</td>
-                        <td className={`center ${isCallITM ? 'oc-itm' : ''}`} style={{ color: 'var(--text-muted)' }}>{row.call_options.market_data.volume}</td>
+                        <td className={`center ${isCallITM ? 'oc-itm' : ''}`} style={{ color: 'var(--text-muted)' }}>{row.call_options?.market_data?.oi || 0}</td>
+                        <td className={`center ${isCallITM ? 'oc-itm' : ''}`} style={{ color: 'var(--text-muted)' }}>{row.call_options?.market_data?.volume || 0}</td>
                         <td className={`center ${isCallITM ? 'oc-itm' : ''}`} style={{ borderRight: '1px solid var(--border)' }}>
-                          <span 
-                            className="oc-ltp"
-                            onClick={() => setSelectedTrade({ strike: row.strike_price, type: 'CE', ltp: row.call_options.market_data.ltp, symbol: selectedUnderlying, expiry, instrument_key: row.call_options.instrument_key })}
-                          >
-                            {row.call_options.market_data.ltp.toFixed(2)}
-                          </span>
+                          {ceLtp !== undefined ? (
+                            <span 
+                              className="oc-ltp"
+                              onClick={() => setSelectedTrade({ strike: row.strike_price, type: 'CE', ltp: ceLtp, symbol: selectedUnderlying, expiry, instrument_key: ceKey })}
+                            >
+                              {ceLtp.toFixed(2)}
+                            </span>
+                          ) : '-'}
                         </td>
                         
                         {/* Strike */}
@@ -258,15 +312,17 @@ export default function MarketsPage() {
                         
                         {/* Puts */}
                         <td className={`center ${isPutITM ? 'oc-itm' : ''}`} style={{ borderLeft: '1px solid var(--border)' }}>
-                          <span 
-                            className="oc-ltp"
-                            onClick={() => setSelectedTrade({ strike: row.strike_price, type: 'PE', ltp: row.put_options.market_data.ltp, symbol: selectedUnderlying, expiry, instrument_key: row.put_options.instrument_key })}
-                          >
-                            {row.put_options.market_data.ltp.toFixed(2)}
-                          </span>
+                          {peLtp !== undefined ? (
+                            <span 
+                              className="oc-ltp"
+                              onClick={() => setSelectedTrade({ strike: row.strike_price, type: 'PE', ltp: peLtp, symbol: selectedUnderlying, expiry, instrument_key: peKey })}
+                            >
+                              {peLtp.toFixed(2)}
+                            </span>
+                          ) : '-'}
                         </td>
-                        <td className={`center ${isPutITM ? 'oc-itm' : ''}`} style={{ color: 'var(--text-muted)' }}>{row.put_options.market_data.volume}</td>
-                        <td className={`center ${isPutITM ? 'oc-itm' : ''}`} style={{ color: 'var(--text-muted)' }}>{row.put_options.market_data.oi}</td>
+                        <td className={`center ${isPutITM ? 'oc-itm' : ''}`} style={{ color: 'var(--text-muted)' }}>{row.put_options?.market_data?.volume || 0}</td>
+                        <td className={`center ${isPutITM ? 'oc-itm' : ''}`} style={{ color: 'var(--text-muted)' }}>{row.put_options?.market_data?.oi || 0}</td>
                       </tr>
                     )
                   })}
@@ -281,7 +337,7 @@ export default function MarketsPage() {
         tradeDetails={selectedTrade} 
         onClose={() => setSelectedTrade(null)} 
         onExecute={() => {
-          // Could show a success toast here
+          // Toast happens inside modal
         }}
       />
     </div>

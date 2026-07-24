@@ -7,6 +7,7 @@ import logging
 import urllib.parse
 from motor.motor_asyncio import AsyncIOMotorClient
 from dotenv import load_dotenv
+import certifi
 
 load_dotenv()
 
@@ -62,7 +63,11 @@ async def connect_to_mongo():
     global wallet_collection
 
     logger.info(f"Initializing MongoDB connection (DB: {DB_NAME})...")
-    client = AsyncIOMotorClient(MONGODB_URI, serverSelectionTimeoutMS=15000)
+    client = AsyncIOMotorClient(
+        MONGODB_URI, 
+        serverSelectionTimeoutMS=15000,
+        tlsCAFile=certifi.where()
+    )
     db = client[DB_NAME]
     
     # Initialize live trading collections immediately so they are never None
