@@ -20,6 +20,7 @@ import AdminUsers from './pages/admin/AdminUsers'
 import AdminGlobal from './pages/admin/AdminGlobal'
 
 import Backtester from './pages/user/Backtester'
+import UpstoxCallback from './pages/UpstoxCallback'
 
 export default function App() {
   return (
@@ -30,6 +31,9 @@ export default function App() {
 
         {/* Redirect root based on auth */}
         <Route path="/" element={<Navigate to="/home" replace />} />
+
+        {/* OAuth Callback */}
+        <Route path="/broker/callback" element={<UpstoxCallback />} />
 
         {/* User Routes (with BottomNav) */}
         <Route element={<ProtectedRoute requiredRole="user"><Layout /></ProtectedRoute>}>

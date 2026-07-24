@@ -9,6 +9,7 @@ import {
   User, LogOut, Shield, History, Wallet, TrendingUp, TrendingDown,
   Award, ChevronRight, CheckCircle2
 } from 'lucide-react'
+import BrokerConnect from '../../components/BrokerConnect'
 
 export default function ProfilePage() {
   const { user, logout, isAdmin } = useAuth()
@@ -97,6 +98,11 @@ export default function ProfilePage() {
             <ChevronRight size={18} className="text-muted" />
           </div>
         </div>
+      </div>
+
+      {/* Broker Integration & Setup Guide */}
+      <div className="section" style={{ marginTop: '20px' }}>
+        <BrokerConnect />
       </div>
 
       {/* Account Info Section */}

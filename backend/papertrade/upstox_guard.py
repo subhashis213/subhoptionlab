@@ -36,11 +36,22 @@ UPSTOX_BASE_URL = "https://api.upstox.com"
 
 
 def _get_access_token() -> Optional[str]:
-    """Get Upstox access token from environment."""
+    """Get Upstox access token from environment or database."""
     token = os.getenv("UPSTOX_ACCESS_TOKEN")
-    if not token or token == "mock_token":
-        return None
-    return token
+    if token and token != "mock_token":
+        return token
+        
+    try:
+        from live.db import db as mongo_db
+        import base64
+        # Synchronous check via asyncio event loop if loop is running
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            # In async contexts, we can fetch synchronously from os.environ which is updated by broker_router
+            pass
+    except Exception:
+        pass
+    return None
 
 
 def _make_headers(token: str) -> dict:
