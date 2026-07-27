@@ -104,9 +104,8 @@ async def create_strategy(req: StrategyCreate, user: dict = Depends(require_user
     }
 
 
-# ── List Strategies ────────────────────────────────────────────────────────────
+# ── Helper Functions ────────────────────────────────────────────────────────────
 
-@router.get("")
 def calc_strategy_metrics(legs: list) -> tuple[float, float, float]:
     """
     Calculate (margin_used, current_value, total_pnl) for strategy legs.
@@ -181,6 +180,9 @@ def calc_strategy_metrics(legs: list) -> tuple[float, float, float]:
     return round(margin_used, 2), round(current_value, 2), round(total_pnl, 2)
 
 
+# ── List Strategies ────────────────────────────────────────────────────────────
+
+@router.get("")
 @router.get("/")
 async def list_strategies(
     status_filter: Optional[str] = Query(None, alias="status"),
