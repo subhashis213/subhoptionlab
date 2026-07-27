@@ -4,6 +4,20 @@ import { TrendingUp, TrendingDown, RefreshCw, Search } from 'lucide-react'
 import QuickTradeModal from '../../components/QuickTradeModal'
 import useMarketStream from '../../hooks/useMarketStream'
 
+function buildClientKey(underlying, expiry, strike, optionType) {
+  if (!expiry || !strike) return ''
+  try {
+    const d = new Date(expiry)
+    const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC']
+    const year = d.getFullYear().toString().slice(-2)
+    const monthStr = months[d.getMonth()]
+    const dayStr = d.getDate().toString().padStart(2, '0')
+    return `NSE_FO|${underlying}${year}${monthStr}${dayStr}${Math.floor(strike)}${optionType}`
+  } catch (e) {
+    return ''
+  }
+}
+
 export default function MarketsPage() {
   const [indices, setIndices] = useState([])
   const [loadingIndices, setLoadingIndices] = useState(true)
@@ -40,7 +54,7 @@ export default function MarketsPage() {
       keys.push(`NSE_EQ|${selectedUnderlying}`)
     }
     
-    // Add option chain keys (both raw colon and piped formats)
+    // Add option chain keys (raw colon, pipe, and constructed string formats)
     if (optionChain.length > 0) {
       optionChain.forEach(row => {
         if (row.call_options?.instrument_key) {
@@ -53,6 +67,10 @@ export default function MarketsPage() {
           keys.push(raw)
           keys.push(raw.replace(':', '|'))
         }
+        const strCE = buildClientKey(selectedUnderlying, expiry, row.strike_price, 'CE')
+        const strPE = buildClientKey(selectedUnderlying, expiry, row.strike_price, 'PE')
+        if (strCE) keys.push(strCE)
+        if (strPE) keys.push(strPE)
       })
     }
     
@@ -62,8 +80,8 @@ export default function MarketsPage() {
       topStocks.losers.forEach(s => keys.push(s.instrument_key))
     }
     
-    return Array.from(new Set(keys));
-  }, [indices, optionChain, isStock, selectedUnderlying, topStocks])
+    return Array.from(new Set(keys.filter(Boolean)));
+  }, [indices, optionChain, isStock, selectedUnderlying, expiry, topStocks])
 
   const liveData = useMarketStream(wsKeys)
 
@@ -403,10 +421,13 @@ export default function MarketsPage() {
                     const rawPeKey = row.put_options?.instrument_key || '';
                     const ceKey = rawCeKey.replace(':', '|');
                     const peKey = rawPeKey.replace(':', '|');
+                    const strCeKey = buildClientKey(selectedUnderlying, expiry, row.strike_price, 'CE');
+                    const strPeKey = buildClientKey(selectedUnderlying, expiry, row.strike_price, 'PE');
                     
-                    // New flat format: liveData[key].ltp — checking both pipe and raw colon formats
-                    const ceLive = ceKey ? (liveData[ceKey] || liveData[rawCeKey]) : null
-                    const peLive = peKey ? (liveData[peKey] || liveData[rawPeKey]) : null
+                    // Comprehensive 3-way fallback lookup: pipe key -> raw colon key -> constructed string key
+                    const ceLive = liveData[ceKey] || liveData[rawCeKey] || (strCeKey ? liveData[strCeKey] : null)
+                    const peLive = liveData[peKey] || liveData[rawPeKey] || (strPeKey ? liveData[strPeKey] : null)
+                    
                     const ceLtp = ceLive ? (ceLive.ltp ?? ceLive.last_price ?? ceLive.ff?.marketFF?.ltpc?.ltp) : row.call_options?.market_data?.ltp
                     const peLtp = peLive ? (peLive.ltp ?? peLive.last_price ?? peLive.ff?.marketFF?.ltpc?.ltp) : row.put_options?.market_data?.ltp
 
@@ -422,10 +443,11 @@ export default function MarketsPage() {
                         <td className={`center ${isCallITM ? 'oc-itm' : ''}`} style={{ borderRight: '1px solid var(--border)' }}>
                           {ceLtp != null ? (
                             <span 
-                              className="oc-ltp"
+                              className={`oc-ltp ${ceLive ? 'live-ticking' : ''}`}
+                              style={ceLive ? { fontWeight: 700, color: 'var(--primary)' } : {}}
                               onClick={(e) => {
                                 e.stopPropagation()
-                                setSelectedTrade({ strike: row.strike_price, type: 'CE', ltp: Number(ceLtp || 0), symbol: selectedUnderlying, expiry, instrument_key: ceKey })
+                                setSelectedTrade({ strike: row.strike_price, type: 'CE', ltp: Number(ceLtp || 0), symbol: selectedUnderlying, expiry, instrument_key: ceKey || strCeKey || rawCeKey })
                               }}
                             >
                               {Number(ceLtp).toFixed(2)}
@@ -442,10 +464,11 @@ export default function MarketsPage() {
                         <td className={`center ${isPutITM ? 'oc-itm' : ''}`} style={{ borderLeft: '1px solid var(--border)' }}>
                           {peLtp != null ? (
                             <span 
-                              className="oc-ltp"
+                              className={`oc-ltp ${peLive ? 'live-ticking' : ''}`}
+                              style={peLive ? { fontWeight: 700, color: 'var(--primary)' } : {}}
                               onClick={(e) => {
                                 e.stopPropagation()
-                                setSelectedTrade({ strike: row.strike_price, type: 'PE', ltp: Number(peLtp || 0), symbol: selectedUnderlying, expiry, instrument_key: peKey })
+                                setSelectedTrade({ strike: row.strike_price, type: 'PE', ltp: Number(peLtp || 0), symbol: selectedUnderlying, expiry, instrument_key: peKey || strPeKey || rawPeKey })
                               }}
                             >
                               {Number(peLtp).toFixed(2)}
