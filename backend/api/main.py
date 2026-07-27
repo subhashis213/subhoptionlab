@@ -129,7 +129,7 @@ async def startup_event():
     async def _keep_alive():
         import asyncio
         import urllib.request
-        url = "https://subhoptionlab.onrender.com/api/instruments/expiries"
+        url = "https://subhoptionlab.onrender.com/api/ping"
         while True:
             await asyncio.sleep(600)  # Wait 10 minutes
             try:
@@ -142,6 +142,11 @@ async def startup_event():
                 
     asyncio.create_task(_keep_alive())
 
+
+@app.api_route("/api/ping", methods=["GET", "HEAD"])
+async def ping():
+    """Dedicated endpoint for UptimeRobot and internal keep-alive."""
+    return {"status": "alive", "timestamp": datetime.now().isoformat()}
 
 @app.on_event("shutdown")
 async def shutdown_event():
