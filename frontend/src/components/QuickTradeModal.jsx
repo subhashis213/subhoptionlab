@@ -103,7 +103,7 @@ export default function QuickTradeModal({ tradeDetails, onClose, onExecute }) {
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
               <h2 style={{ margin: '8px 0 0' }}>{type === 'EQ' ? 'EQUITY' : `${strike} ${type}`}</h2>
-              <span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>₹{ltp.toFixed(2)}</span>
+              <span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>₹{Number(ltp || 0).toFixed(2)}</span>
             </div>
           </div>
 
@@ -135,7 +135,7 @@ export default function QuickTradeModal({ tradeDetails, onClose, onExecute }) {
                 className="form-control" 
                 value={limitPrice} 
                 onChange={(e) => setLimitPrice(e.target.value)}
-                placeholder={`e.g. ${(ltp * 0.95).toFixed(2)}`}
+                placeholder={`e.g. ${(Number(ltp || 0) * 0.95).toFixed(2)}`}
               />
             </div>
           )}

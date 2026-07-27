@@ -418,12 +418,12 @@ export default function MarketsPage() {
                         <td className={`center ${isCallITM ? 'oc-itm' : ''}`} style={{ color: 'var(--text-muted)' }}>{row.call_options?.market_data?.oi || 0}</td>
                         <td className={`center ${isCallITM ? 'oc-itm' : ''}`} style={{ color: 'var(--text-muted)' }}>{row.call_options?.market_data?.volume || 0}</td>
                         <td className={`center ${isCallITM ? 'oc-itm' : ''}`} style={{ borderRight: '1px solid var(--border)' }}>
-                          {ceLtp !== undefined ? (
+                          {ceLtp != null ? (
                             <span 
                               className="oc-ltp"
-                              onClick={() => setSelectedTrade({ strike: row.strike_price, type: 'CE', ltp: ceLtp, symbol: selectedUnderlying, expiry, instrument_key: ceKey })}
+                              onClick={() => setSelectedTrade({ strike: row.strike_price, type: 'CE', ltp: Number(ceLtp), symbol: selectedUnderlying, expiry, instrument_key: ceKey })}
                             >
-                              {ceLtp.toFixed(2)}
+                              {Number(ceLtp).toFixed(2)}
                             </span>
                           ) : '-'}
                         </td>
@@ -435,12 +435,12 @@ export default function MarketsPage() {
                         
                         {/* Puts */}
                         <td className={`center ${isPutITM ? 'oc-itm' : ''}`} style={{ borderLeft: '1px solid var(--border)' }}>
-                          {peLtp !== undefined ? (
+                          {peLtp != null ? (
                             <span 
                               className="oc-ltp"
-                              onClick={() => setSelectedTrade({ strike: row.strike_price, type: 'PE', ltp: peLtp, symbol: selectedUnderlying, expiry, instrument_key: peKey })}
+                              onClick={() => setSelectedTrade({ strike: row.strike_price, type: 'PE', ltp: Number(peLtp), symbol: selectedUnderlying, expiry, instrument_key: peKey })}
                             >
-                              {peLtp.toFixed(2)}
+                              {Number(peLtp).toFixed(2)}
                             </span>
                           ) : '-'}
                         </td>
