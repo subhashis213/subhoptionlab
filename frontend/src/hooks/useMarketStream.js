@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 
+// ── Global singleton WebSocket state ────────────────────────────────────────
 let globalWs = null;
 let reconnectTimeout = null;
 let connectionCount = 0;
@@ -8,25 +9,17 @@ let subscribers = new Set();
 let isConnecting = false;
 
 /**
- * Get the correct WebSocket URL.
- * CRITICAL: Vercel cannot proxy WebSockets. We must connect directly to Render backend.
- * On production: wss://subhoptionlab.onrender.com
- * On localhost: ws://localhost:8000
+ * Get the correct WebSocket base URL.
+ * CRITICAL: Vercel CANNOT proxy WebSocket connections.
+ * On production we connect directly to the Render backend.
  */
-function getWsUrl() {
-  // If user explicitly set a WS URL, use it
-  if (import.meta.env.VITE_WS_URL) {
-    return import.meta.env.VITE_WS_URL;
-  }
-  
-  // On production (not localhost), connect directly to Render backend
-  if (typeof window !== 'undefined' && 
-      window.location.hostname !== 'localhost' && 
+function getWsBase() {
+  if (import.meta.env.VITE_WS_URL) return import.meta.env.VITE_WS_URL;
+  if (typeof window !== 'undefined' &&
+      window.location.hostname !== 'localhost' &&
       window.location.hostname !== '127.0.0.1') {
     return 'wss://subhoptionlab.onrender.com';
   }
-  
-  // Local dev
   return 'ws://localhost:8000';
 }
 
@@ -34,50 +27,49 @@ function connectWs() {
   if (globalWs || isConnecting) return;
   isConnecting = true;
 
-  const WS_URL = getWsUrl();
+  const wsBase = getWsBase();
+  const url = `${wsBase}/ws/live-market`;
 
   try {
-    console.log(`[MarketStream] Connecting to ${WS_URL}/ws/live-market`);
-    globalWs = new WebSocket(`${WS_URL}/ws/live-market`);
-    
+    console.log(`[MarketStream] Connecting → ${url}`);
+    globalWs = new WebSocket(url);
+
     globalWs.onopen = () => {
-      console.log("[MarketStream] ✅ Connected to Live Market WebSocket.");
+      console.log('[MarketStream] ✅ Connected');
       isConnecting = false;
-      // Resubscribe to all active keys
       if (subscriptionKeys.size > 0) {
-        globalWs.send(JSON.stringify({ action: "subscribe", keys: Array.from(subscriptionKeys) }));
+        globalWs.send(JSON.stringify({ action: 'subscribe', keys: Array.from(subscriptionKeys) }));
       }
     };
-    
+
     globalWs.onmessage = (event) => {
       try {
         const msg = JSON.parse(event.data);
-        if (msg.type === "pong") return;
-        
-        // Notify all hooked components
+        if (msg.type === 'pong') return;
         for (const cb of subscribers) {
           cb(msg);
         }
       } catch (err) {
-        console.error("[MarketStream] WS Parse error", err);
+        console.error('[MarketStream] Parse error:', err);
       }
     };
-    
+
     globalWs.onclose = (e) => {
       globalWs = null;
       isConnecting = false;
-      console.log(`[MarketStream] WebSocket closed (code: ${e.code}). Reconnecting in 3s...`);
+      console.log(`[MarketStream] Closed (${e.code}). Reconnecting in 2s...`);
       clearTimeout(reconnectTimeout);
-      reconnectTimeout = setTimeout(connectWs, 3000);
+      if (connectionCount > 0) {
+        reconnectTimeout = setTimeout(connectWs, 2000);
+      }
     };
-    
-    globalWs.onerror = (err) => {
-      console.error("[MarketStream] WebSocket Error:", err);
+
+    globalWs.onerror = () => {
       if (globalWs) globalWs.close();
     };
-    
+
   } catch (err) {
-    console.error("[MarketStream] WebSocket setup error:", err);
+    console.error('[MarketStream] Setup error:', err);
     isConnecting = false;
     reconnectTimeout = setTimeout(connectWs, 3000);
   }
@@ -85,74 +77,71 @@ function connectWs() {
 
 function disconnectWs() {
   clearTimeout(reconnectTimeout);
-  if (globalWs && connectionCount <= 0) {
+  if (globalWs) {
     globalWs.close();
     globalWs = null;
     isConnecting = false;
   }
 }
 
+function subscribeKeys(keys) {
+  const newKeys = keys.filter(k => !subscriptionKeys.has(k));
+  newKeys.forEach(k => subscriptionKeys.add(k));
+  if (globalWs && globalWs.readyState === WebSocket.OPEN && newKeys.length > 0) {
+    globalWs.send(JSON.stringify({ action: 'subscribe', keys: newKeys }));
+  }
+}
+
+// ── Hook ─────────────────────────────────────────────────────────────────────
 export default function useMarketStream(keysToSubscribe = []) {
   const [marketData, setMarketData] = useState({});
   const bufferRef = useRef({});
-  const animationFrameRef = useRef(null);
+  const rafRef = useRef(null);
 
   const handleMessage = useCallback((msg) => {
-    let instrumentKey = msg.instrument_key;
-    let ltp = null;
-    
-    // Handle Upstox Protobuf/dict structure
-    if (msg.ff) {
-      if (msg.ff.indexFF && msg.ff.indexFF.ltpc) {
-        ltp = msg.ff.indexFF.ltpc.ltp;
-        if (!instrumentKey && msg.ff.indexFF.ltpc.instrument_key) {
-          instrumentKey = msg.ff.indexFF.ltpc.instrument_key;
-        }
-      } else if (msg.ff.marketFF && msg.ff.marketFF.ltpc) {
-        ltp = msg.ff.marketFF.ltpc.ltp;
-        if (!instrumentKey && msg.ff.marketFF.ltpc.instrument_key) {
-          instrumentKey = msg.ff.marketFF.ltpc.instrument_key;
-        }
-      }
-    }
-    
-    // API fallback dict from backend
-    if (msg.last_price !== undefined) {
-      ltp = msg.last_price;
-    }
+    /**
+     * Backend now sends one flat object per instrument:
+     * {
+     *   instrument_key: "NSE_INDEX|Nifty Bank",
+     *   last_price: 57120.7,
+     *   ltp: 57120.7,
+     *   net_change: 230.5,
+     *   change_percent: 0.41,
+     *   close_price: 56890.2,
+     *   volume: 123456,   (optional)
+     *   oi: 98765,        (optional)
+     * }
+     */
+    const key = msg.instrument_key;
+    const ltp = msg.ltp ?? msg.last_price;
 
-    if (ltp !== null && instrumentKey) {
-      bufferRef.current[instrumentKey] = msg;
-    }
-    
-    // Throttle rendering at ~30 FPS using requestAnimationFrame
-    if (!animationFrameRef.current) {
-      animationFrameRef.current = requestAnimationFrame(() => {
-        setMarketData(prev => ({...prev, ...bufferRef.current}));
+    if (!key || ltp === undefined || ltp === null) return;
+
+    bufferRef.current[key] = msg;
+
+    // Flush to state at ~60 FPS
+    if (!rafRef.current) {
+      rafRef.current = requestAnimationFrame(() => {
+        setMarketData(prev => ({ ...prev, ...bufferRef.current }));
         bufferRef.current = {};
-        animationFrameRef.current = null;
+        rafRef.current = null;
       });
     }
   }, []);
 
+  // Subscribe / unsubscribe when keysToSubscribe changes
   useEffect(() => {
     subscribers.add(handleMessage);
-    
     connectionCount++;
+
     if (connectionCount === 1) {
       connectWs();
     }
-    
-    // Subscribe to new keys when WS is ready
+
     if (keysToSubscribe.length > 0) {
-      const newKeys = keysToSubscribe.filter(k => !subscriptionKeys.has(k));
-      newKeys.forEach(k => subscriptionKeys.add(k));
-      
-      if (globalWs && globalWs.readyState === WebSocket.OPEN && newKeys.length > 0) {
-        globalWs.send(JSON.stringify({ action: "subscribe", keys: newKeys }));
-      }
+      subscribeKeys(keysToSubscribe);
     }
-    
+
     return () => {
       subscribers.delete(handleMessage);
       connectionCount--;
@@ -160,11 +149,13 @@ export default function useMarketStream(keysToSubscribe = []) {
         connectionCount = 0;
         disconnectWs();
       }
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
       }
     };
-  }, [keysToSubscribe.join(","), handleMessage]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [keysToSubscribe.join(','), handleMessage]);
 
   return marketData;
 }

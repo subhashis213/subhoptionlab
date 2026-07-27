@@ -159,16 +159,17 @@ export default function MarketsPage() {
     fetchOptionChain()
   }, [selectedUnderlying, expiry])
 
-  // Process live spot price for selected underlying
+  // Process live spot price for selected underlying - new flat format: msg.ltp or msg.last_price
   let spotPrice = 0;
   if (!isStock) {
     const keyMap = { "NIFTY": "NSE_INDEX|Nifty 50", "BANKNIFTY": "NSE_INDEX|Nifty Bank", "FINNIFTY": "NSE_INDEX|Nifty Fin Service", "MIDCAPNIFTY": "NSE_INDEX|NIFTY MID SELECT" }
     const idx = indices.find(i => i.symbol === selectedUnderlying)
     const key = keyMap[selectedUnderlying]
-    spotPrice = liveData[key]?.ltpc?.ltp || liveData[key]?.last_price || idx?.ltp || 0
+    // New format: flat { ltp, last_price, ... }. Old fallback: ff.indexFF.ltpc.ltp
+    spotPrice = liveData[key]?.ltp || liveData[key]?.last_price || liveData[key]?.ff?.indexFF?.ltpc?.ltp || idx?.ltp || 0
   } else {
     const key = `NSE_EQ|${selectedUnderlying}`
-    spotPrice = liveData[key]?.ltpc?.ltp || liveData[key]?.last_price || 0
+    spotPrice = liveData[key]?.ltp || liveData[key]?.last_price || liveData[key]?.ff?.marketFF?.ltpc?.ltp || 0
     if (spotPrice === 0) {
       const fallbackStock = topStocks.gainers.find(s => s.symbol === selectedUnderlying) || topStocks.losers.find(s => s.symbol === selectedUnderlying)
       if (fallbackStock) spotPrice = fallbackStock.ltp
@@ -232,7 +233,10 @@ export default function MarketsPage() {
           indices.map((idx) => {
             const keyMap = { "NIFTY": "NSE_INDEX|Nifty 50", "BANKNIFTY": "NSE_INDEX|Nifty Bank", "FINNIFTY": "NSE_INDEX|Nifty Fin Service", "MIDCAPNIFTY": "NSE_INDEX|NIFTY MID SELECT" }
             const liveInfo = liveData[keyMap[idx.symbol]]
-            const currentLtp = liveInfo?.ltpc?.ltp || liveInfo?.last_price || idx.ltp
+            // New flat format: liveInfo.ltp — old fallbacks supported too
+            const currentLtp = liveInfo?.ltp || liveInfo?.last_price || liveInfo?.ff?.indexFF?.ltpc?.ltp || idx.ltp
+            const liveChange = liveInfo?.net_change ?? idx.change
+            const liveChangePct = liveInfo?.change_percent ?? idx.change_percent
             
             return (
             <div 
@@ -250,9 +254,9 @@ export default function MarketsPage() {
               <div className="stat-value" style={{ fontSize: '1.4rem' }}>
                 {currentLtp.toFixed(2)}
               </div>
-              <div className={`stat-change ${idx.change >= 0 ? 'profit' : 'loss'}`}>
-                {idx.change >= 0 ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
-                <span>{idx.change} ({idx.change_percent}%)</span>
+              <div className={`stat-change ${liveChange >= 0 ? 'profit' : 'loss'}`}>
+                {liveChange >= 0 ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
+                <span>{liveChange > 0 ? '+' : ''}{liveChange?.toFixed(2)} ({liveChangePct?.toFixed(2)}%)</span>
               </div>
             </div>
           )})
@@ -268,12 +272,13 @@ export default function MarketsPage() {
           <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '8px' }}>
             {loadingTopStocks ? <p>Loading...</p> : topStocks.gainers.map(s => {
               const liveInfo = liveData[s.instrument_key]
-              const currentLtp = liveInfo?.ltpc?.ltp || liveInfo?.last_price || s.ltp
+              const currentLtp = liveInfo?.ltp || liveInfo?.last_price || s.ltp
+              const currentChangePct = liveInfo?.change_percent ?? s.change_percent
               return (
                 <div key={s.symbol} className="stat-card" style={{ minWidth: '150px', cursor: 'pointer' }} onClick={() => selectStock(s.symbol)}>
                   <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{s.symbol}</div>
-                  <div style={{ fontSize: '1.2rem', margin: '4px 0' }}>₹{currentLtp.toFixed(2)}</div>
-                  <div className="profit" style={{ fontSize: '0.8rem' }}>+{s.change_percent}%</div>
+                  <div style={{ fontSize: '1.2rem', margin: '4px 0' }}>₹{Number(currentLtp).toFixed(2)}</div>
+                  <div className="profit" style={{ fontSize: '0.8rem' }}>+{Number(currentChangePct).toFixed(2)}%</div>
                 </div>
               )
             })}
@@ -286,12 +291,13 @@ export default function MarketsPage() {
           <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '8px' }}>
             {loadingTopStocks ? <p>Loading...</p> : topStocks.losers.map(s => {
               const liveInfo = liveData[s.instrument_key]
-              const currentLtp = liveInfo?.ltpc?.ltp || liveInfo?.last_price || s.ltp
+              const currentLtp = liveInfo?.ltp || liveInfo?.last_price || s.ltp
+              const currentChangePct = liveInfo?.change_percent ?? s.change_percent
               return (
                 <div key={s.symbol} className="stat-card" style={{ minWidth: '150px', cursor: 'pointer' }} onClick={() => selectStock(s.symbol)}>
                   <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{s.symbol}</div>
-                  <div style={{ fontSize: '1.2rem', margin: '4px 0' }}>₹{currentLtp.toFixed(2)}</div>
-                  <div className="loss" style={{ fontSize: '0.8rem' }}>{s.change_percent}%</div>
+                  <div style={{ fontSize: '1.2rem', margin: '4px 0' }}>₹{Number(currentLtp).toFixed(2)}</div>
+                  <div className="loss" style={{ fontSize: '0.8rem' }}>{Number(currentChangePct).toFixed(2)}%</div>
                 </div>
               )
             })}
@@ -394,8 +400,11 @@ export default function MarketsPage() {
                     const ceKey = row.call_options?.instrument_key
                     const peKey = row.put_options?.instrument_key
                     
-                    const ceLtp = ceKey && liveData[ceKey] ? (liveData[ceKey].ltpc?.ltp || liveData[ceKey].last_price) : row.call_options?.market_data?.ltp
-                    const peLtp = peKey && liveData[peKey] ? (liveData[peKey].ltpc?.ltp || liveData[peKey].last_price) : row.put_options?.market_data?.ltp
+                    // New flat format: liveData[key].ltp — with old fallbacks
+                    const ceLive = ceKey ? liveData[ceKey] : null
+                    const peLive = peKey ? liveData[peKey] : null
+                    const ceLtp = ceLive ? (ceLive.ltp || ceLive.last_price || ceLive.ff?.marketFF?.ltpc?.ltp) : row.call_options?.market_data?.ltp
+                    const peLtp = peLive ? (peLive.ltp || peLive.last_price || peLive.ff?.marketFF?.ltpc?.ltp) : row.put_options?.market_data?.ltp
 
                     return (
                       <tr 

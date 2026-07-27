@@ -2,7 +2,7 @@ import asyncio
 import threading
 import logging
 import json
-from typing import Set, Dict, Any
+from typing import Set, Dict, Any, Optional
 from collections import defaultdict
 import upstox_client
 from upstox_client.feeder import MarketDataStreamerV3
@@ -10,6 +10,74 @@ from .upstox_guard import _get_access_token
 from google.protobuf.json_format import MessageToDict
 
 logger = logging.getLogger(__name__)
+
+
+def _extract_feeds_from_message(message) -> Dict[str, Any]:
+    """
+    Parse an Upstox protobuf FeedResponse into a flat dict of:
+      { instrument_key: { ltp, cp, instrument_key, ... } }
+    
+    The Upstox FeedResponse protobuf structure is:
+      FeedResponse.feeds = Map<instrument_key, Feed>
+      Feed.ff.indexFF.ltpc.ltp  (for indices)
+      Feed.ff.marketFF.ltpc.ltp  (for equities/options)
+    """
+    try:
+        if hasattr(message, "DESCRIPTOR"):
+            msg_dict = MessageToDict(message, preserving_proto_field_name=True)
+        elif isinstance(message, dict):
+            msg_dict = message
+        else:
+            return {}
+        
+        feeds_map = msg_dict.get("feeds", {})
+        result = {}
+        
+        for instrument_key, feed_data in feeds_map.items():
+            ff = feed_data.get("ff", {})
+            
+            ltp = None
+            cp = None   # close/previous price
+            vol = None
+            oi = None
+            
+            if ff.get("indexFF"):
+                idx = ff["indexFF"]
+                ltpc = idx.get("ltpc", {})
+                ltp = ltpc.get("ltp")
+                cp = ltpc.get("cp")  # close price (prev day)
+                mf = idx.get("marketOHLC", {})
+            elif ff.get("marketFF"):
+                mkt = ff["marketFF"]
+                ltpc = mkt.get("ltpc", {})
+                ltp = ltpc.get("ltp")
+                cp = ltpc.get("cp")
+                vol = mkt.get("volTraded")
+                oi = mkt.get("openInterest")
+            
+            if ltp is not None:
+                item = {
+                    "instrument_key": instrument_key,
+                    "last_price": float(ltp),
+                    "ltp": float(ltp),
+                }
+                if cp is not None:
+                    item["close_price"] = float(cp)
+                    change = float(ltp) - float(cp)
+                    item["net_change"] = round(change, 2)
+                    item["change_percent"] = round((change / float(cp)) * 100, 2) if float(cp) > 0 else 0.0
+                if vol is not None:
+                    item["volume"] = int(vol)
+                if oi is not None:
+                    item["oi"] = int(oi)
+                    
+                result[instrument_key] = item
+                
+        return result
+    except Exception as e:
+        logger.error(f"Error extracting feeds: {e}")
+        return {}
+
 
 class LiveFeedHub:
     _instance = None
@@ -36,8 +104,11 @@ class LiveFeedHub:
         self.loop = None
         self._thread = None
         self.connected = False
+        
+        # Polling fallback
+        self._poll_task: Optional[asyncio.Task] = None
+        
         self.initialized = True
-
 
     async def start(self):
         self.loop = asyncio.get_event_loop()
@@ -58,12 +129,20 @@ class LiveFeedHub:
                 pass
             self.streamer = None
             self.connected = False
+        
+        # Stop existing polling task
+        if self._poll_task and not self._poll_task.done():
+            self._poll_task.cancel()
             
         configuration = upstox_client.Configuration()
         configuration.access_token = token
         api_client = upstox_client.ApiClient(configuration)
         
-        self.streamer = MarketDataStreamerV3(api_client=api_client, instrumentKeys=list(self.active_keys), mode="full")
+        self.streamer = MarketDataStreamerV3(
+            api_client=api_client,
+            instrumentKeys=list(self.active_keys),
+            mode="full"
+        )
         self.streamer.on("message", self._on_message)
         self.streamer.on("open", self._on_open)
         self.streamer.on("error", self._on_error)
@@ -74,6 +153,9 @@ class LiveFeedHub:
         self._thread = threading.Thread(target=self.streamer.connect, daemon=True)
         self._thread.start()
         logger.info("LiveFeedHub Upstox WebSocket thread started.")
+        
+        # Start polling fallback — ensures data keeps flowing even if WS has gaps
+        self._poll_task = asyncio.create_task(self._polling_loop())
 
     async def restart_with_new_token(self):
         """Call this after a new token is saved to restart the live data stream."""
@@ -87,6 +169,43 @@ class LiveFeedHub:
         await self._start_with_token(token)
         logger.info("LiveFeedHub: Successfully restarted with new token.")
 
+    async def _polling_loop(self):
+        """
+        REST API polling backup — fetches LTP every 1.5 seconds for all subscribed keys.
+        This is the fallback that keeps data flowing even if the Upstox WebSocket has gaps.
+        It also provides the initial burst of data before the WebSocket warms up.
+        """
+        from .upstox_guard import fetch_ltp
+        logger.info("LiveFeedHub: Polling fallback loop started.")
+        
+        while True:
+            try:
+                await asyncio.sleep(1.5)
+                
+                if not self.active_keys or not self.client_queues:
+                    continue
+                
+                keys_list = list(self.active_keys)
+                ltp_data = await fetch_ltp(keys_list)
+                
+                if not ltp_data:
+                    continue
+                
+                # Format each key as a proper instrument update dict
+                for instrument_key, ltp in ltp_data.items():
+                    msg = {
+                        "instrument_key": instrument_key,
+                        "last_price": float(ltp),
+                        "ltp": float(ltp),
+                    }
+                    self._broadcast(msg)
+                    
+            except asyncio.CancelledError:
+                logger.info("LiveFeedHub: Polling loop cancelled.")
+                break
+            except Exception as e:
+                logger.error(f"LiveFeedHub polling error: {e}")
+                await asyncio.sleep(3)
 
     def _on_open(self):
         self.connected = True
@@ -103,38 +222,46 @@ class LiveFeedHub:
         
     def _on_message(self, message):
         """
-        Message is either a parsed dict or a protobuf message object from Upstox SDK.
+        Receive a FeedResponse from the Upstox streaming SDK.
+        Parse it into per-instrument messages and broadcast to all frontend clients.
         """
-        # Convert to dict if it's a protobuf message
         try:
-            if hasattr(message, "DESCRIPTOR"):
-                msg_dict = MessageToDict(message, preserving_proto_field_name=True)
-            elif isinstance(message, dict):
-                msg_dict = message
-            else:
-                msg_dict = dict(message)
-                
-            if not msg_dict:
+            # Parse protobuf FeedResponse into flat { instrument_key: {...} } dict
+            feeds = _extract_feeds_from_message(message)
+            
+            if not feeds:
                 return
                 
-            # Broadcast to all async clients
+            # Broadcast each instrument separately so the frontend can map by key
             if self.loop and not self.loop.is_closed():
-                self.loop.call_soon_threadsafe(self._broadcast, msg_dict)
-                
+                for instrument_key, feed_data in feeds.items():
+                    self.loop.call_soon_threadsafe(self._broadcast, feed_data)
+                    
         except Exception as e:
             logger.error(f"LiveFeedHub message parse error: {e}")
 
-    def _broadcast(self, msg_dict: Dict[str, Any]):
-        # Push to all connected FastAPI clients
+    def _broadcast(self, msg: Dict[str, Any]):
+        """Push a single instrument's data to all connected frontend clients."""
+        dead_queues = set()
         for q in list(self.client_queues):
             try:
-                # Keep queue small to prevent memory leaks if client is slow
-                if q.qsize() < 100:
-                    q.put_nowait(msg_dict)
+                if q.qsize() < 500:  # Increased buffer for fast data
+                    q.put_nowait(msg)
+                else:
+                    # Queue full - drop oldest to keep up with live data
+                    try:
+                        q.get_nowait()
+                    except Exception:
+                        pass
+                    q.put_nowait(msg)
             except Exception:
-                pass
+                dead_queues.add(q)
+        
+        # Clean up dead queues
+        for q in dead_queues:
+            self.client_queues.discard(q)
 
-    def subscribe_keys(self, instrument_keys: list[str]):
+    def subscribe_keys(self, instrument_keys: list):
         new_keys_to_subscribe = []
         for k in instrument_keys:
             if self.key_subscribers[k] == 0:
@@ -146,7 +273,7 @@ class LiveFeedHub:
             logger.info(f"LiveFeedHub subscribing to Upstox: {new_keys_to_subscribe}")
             self.streamer.subscribe(new_keys_to_subscribe, mode="full")
             
-    def unsubscribe_keys(self, instrument_keys: list[str]):
+    def unsubscribe_keys(self, instrument_keys: list):
         keys_to_unsubscribe = []
         for k in instrument_keys:
             if self.key_subscribers[k] > 0:
@@ -161,12 +288,11 @@ class LiveFeedHub:
             self.streamer.unsubscribe(keys_to_unsubscribe)
             
     def register_client(self) -> asyncio.Queue:
-        q = asyncio.Queue()
+        q = asyncio.Queue(maxsize=1000)
         self.client_queues.add(q)
         return q
         
     def unregister_client(self, q: asyncio.Queue):
-        if q in self.client_queues:
-            self.client_queues.remove(q)
+        self.client_queues.discard(q)
 
 live_feed_hub = LiveFeedHub()
