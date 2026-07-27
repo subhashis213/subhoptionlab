@@ -58,6 +58,22 @@ async def _get_access_token() -> Optional[str]:
     return None
 
 
+async def _invalidate_token():
+    """Clear the invalid token so the system can prompt for a new one."""
+    if "UPSTOX_ACCESS_TOKEN" in os.environ:
+        del os.environ["UPSTOX_ACCESS_TOKEN"]
+    
+    try:
+        from live.db import broker_credentials_collection
+        if broker_credentials_collection is not None:
+            await broker_credentials_collection.update_one(
+                {"user_id": "default_user", "broker": "upstox"},
+                {"$set": {"is_active": False, "encrypted_access_token": None}}
+            )
+            logger.warning("Upstox token invalidated due to 401 error. Please reconnect.")
+    except Exception as e:
+        logger.error(f"Failed to invalidate token in DB: {e}")
+
 def _make_headers(token: str) -> dict:
     return {
         "Accept": "application/json",
@@ -109,6 +125,10 @@ async def fetch_ltp(instrument_keys: List[str]) -> Dict[str, float]:
                 for mk in missing_keys:
                     result[mk] = _generate_paper_fallback_ltp(mk)
             return result
+        elif response.status_code == 401:
+            logger.warning(f"Upstox LTP API error: 401 {response.text}")
+            await _invalidate_token()
+            return {k: _generate_paper_fallback_ltp(k) for k in instrument_keys}
         else:
             logger.warning(f"Upstox LTP API error: {response.status_code} {response.text[:200]}")
             return {k: _generate_paper_fallback_ltp(k) for k in instrument_keys}
