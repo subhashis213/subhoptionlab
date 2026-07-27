@@ -171,6 +171,19 @@ class LiveFeedHub:
         await self._start_with_token(token)
         logger.info("LiveFeedHub: Successfully restarted with new token.")
 
+    def _subscribe_chunked(self, keys: list):
+        if not keys or not self.streamer or not self.connected:
+            return
+            
+        chunk_size = 100
+        for i in range(0, len(keys), chunk_size):
+            chunk = keys[i:i + chunk_size]
+            try:
+                self.streamer.subscribe(chunk, mode="full")
+                logger.info(f"LiveFeedHub subscribed to chunk of {len(chunk)} keys.")
+            except Exception as e:
+                logger.error(f"Error subscribing to chunk in LiveFeedHub: {e}")
+
     async def _polling_loop(self):
         """
         Ultra-fast REST API polling — fetches FULL quotes every 300ms.
@@ -200,8 +213,8 @@ class LiveFeedHub:
                                 self.upgraded_keys.add(alias)
                         
                         if keys_to_subscribe:
-                            logger.info(f"LiveFeedHub dynamically upgrading subscriptions: {keys_to_subscribe}")
-                            self.streamer.subscribe(keys_to_subscribe, mode="full")
+                            logger.info(f"LiveFeedHub dynamically upgrading subscriptions: {len(keys_to_subscribe)} keys")
+                            self._subscribe_chunked(keys_to_subscribe)
                             # We don't add to active_keys here because active_keys represents frontend requests
                 
                 # Limit to 400 keys to avoid runaway rate limits if user opens many chains
@@ -213,6 +226,10 @@ class LiveFeedHub:
                 for i in range(0, len(keys_list), batch_size):
                     batch = keys_list[i:i + batch_size]
                     
+                    # Pace requests to avoid Upstox 429 rate limit!
+                    if i > 0:
+                        await asyncio.sleep(1.0)
+                    
                     quotes = await fetch_quotes(batch)
                     if not quotes:
                         continue
@@ -221,11 +238,11 @@ class LiveFeedHub:
                         if not quote or not isinstance(quote, dict):
                             continue
                         
+                        # Build rich message with all available data
                         ltp = quote.get("last_price", 0)
                         if not ltp:
                             continue
-                        
-                        # Build rich message with all available data
+                            
                         ohlc = quote.get("ohlc", {})
                         close_price = float(ohlc.get("close", 0))
                         net_change = float(quote.get("net_change", 0))
@@ -265,7 +282,7 @@ class LiveFeedHub:
         self.connected = True
         logger.info("LiveFeedHub Upstox WebSocket CONNECTED.")
         if self.active_keys and self.streamer:
-            self.streamer.subscribe(list(self.active_keys), mode="full")
+            self._subscribe_chunked(list(self.active_keys))
             
     def _on_close(self):
         self.connected = False
@@ -338,8 +355,7 @@ class LiveFeedHub:
             self.active_keys.add(k)
             
         if new_keys_to_subscribe and self.connected and self.streamer:
-            logger.info(f"LiveFeedHub subscribing to Upstox: {new_keys_to_subscribe}")
-            self.streamer.subscribe(new_keys_to_subscribe, mode="full")
+            self._subscribe_chunked(new_keys_to_subscribe)
             
     def unsubscribe_keys(self, instrument_keys: list):
         keys_to_unsubscribe = []
