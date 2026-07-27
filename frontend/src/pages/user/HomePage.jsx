@@ -84,7 +84,7 @@ export default function HomePage() {
           <Wallet size={24} />
           <span>Wallet</span>
         </button>
-        <button className="action-card" onClick={() => window.open('/backtester', '_blank')} style={{ background: 'var(--primary-hover)', color: 'white' }}>
+        <button className="action-card" onClick={() => navigate('/backtester')} style={{ background: 'var(--primary-hover)', color: 'white' }}>
           <Globe size={24} />
           <span>Subh Muhurt</span>
         </button>
