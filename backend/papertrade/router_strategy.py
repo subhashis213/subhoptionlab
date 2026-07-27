@@ -282,7 +282,7 @@ async def activate_strategy(strategy_id: str, user: dict = Depends(require_user)
     if current_time < market_open or current_time > market_close:
         raise HTTPException(400, "Market is closed")
 
-    if strategy["status"] != "draft":
+    if strategy["status"] not in ("draft", "pending"):
         raise HTTPException(400, f"Strategy is already {strategy['status']}")
 
     # Get all legs
@@ -335,6 +335,21 @@ async def activate_strategy(strategy_id: str, user: dict = Depends(require_user)
                 {"_id": leg["_id"]},
                 {"$set": {"strike": resolved_strike, "instrument_key": leg["instrument_key"]}}
             )
+
+    entry_time = strategy.get("entry_time")
+    current_hhmm = now.strftime("%H:%M")
+
+    # If entry_time is set and in the future today, schedule strategy as pending
+    if entry_time and entry_time > current_hhmm:
+        await db.strategies_collection.update_one(
+            {"_id": strategy_id},
+            {"$set": {"status": "pending"}}
+        )
+        return {
+            "status": "pending",
+            "message": f"Strategy scheduled for entry at {entry_time}",
+            "strategy_id": strategy_id,
+        }
 
     # Collect all instrument keys and batch-fetch LTP
     instrument_keys = [leg["instrument_key"] for leg in legs if leg.get("instrument_key")]
