@@ -36,7 +36,7 @@ ALLOWED_UPSTOX_PATHS = frozenset([
 UPSTOX_BASE_URL = "https://api.upstox.com"
 
 
-async def _get_access_token() -> Optional[str]:
+async def _get_access_token(user_id: str = "default_user") -> Optional[str]:
     """Get Upstox access token from environment or database."""
     token = os.getenv("UPSTOX_ACCESS_TOKEN")
     if token and token != "mock_token":
@@ -46,7 +46,11 @@ async def _get_access_token() -> Optional[str]:
         from live.db import broker_credentials_collection
         from live.broker_router import _decrypt
         if broker_credentials_collection is not None:
-            cred = await broker_credentials_collection.find_one({"user_id": "default_user", "broker": "upstox", "is_active": True})
+            # First try specific user_id, fallback to any active upstox credential
+            cred = await broker_credentials_collection.find_one({"user_id": user_id, "broker": "upstox", "is_active": True})
+            if not cred:
+                cred = await broker_credentials_collection.find_one({"broker": "upstox", "is_active": True})
+                
             if cred and cred.get("encrypted_access_token"):
                 decrypted = _decrypt(cred["encrypted_access_token"])
                 if decrypted:
