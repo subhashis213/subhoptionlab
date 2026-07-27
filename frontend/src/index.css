@@ -1,31 +1,5 @@
-/* Base styles and mobile-first reset */
+/* Base styles - Default Light Theme */
 :root {
-  --bg: #0f172a;
-  --bg-card: #1e293b;
-  --bg-hover: #334155;
-  --text: #f8fafc;
-  --text-muted: #94a3b8;
-  --primary: #3b82f6;
-  --primary-hover: #2563eb;
-  --success: #22c55e;
-  --success-bg: rgba(34, 197, 94, 0.1);
-  --danger: #ef4444;
-  --danger-bg: rgba(239, 68, 68, 0.1);
-  --warning: #f59e0b;
-  --border: #334155;
-  --nav-height: 64px;
-
-  /* Component specific - Dark Mode Defaults */
-  --wallet-bg: linear-gradient(135deg, #1e3a8a, #3b82f6);
-  --wallet-text: #ffffff;
-  --wallet-label: rgba(255, 255, 255, 0.8);
-  --action-primary-bg: #1e40af;
-  --action-primary-text: #ffffff;
-  --action-bg: #1e293b;
-  --action-text: #f8fafc;
-}
-
-[data-theme="light"] {
   --bg: #f8fafc;
   --bg-card: #ffffff;
   --bg-hover: #f1f5f9;
@@ -39,8 +13,9 @@
   --danger-bg: rgba(220, 38, 38, 0.1);
   --warning: #d97706;
   --border: #e2e8f0;
+  --nav-height: 64px;
 
-  /* Component specific - Light Mode */
+  /* Component specific - Light Mode Defaults */
   --wallet-bg: linear-gradient(135deg, #1e40af, #2563eb);
   --wallet-text: #ffffff;
   --wallet-label: rgba(255, 255, 255, 0.85);
@@ -48,6 +23,31 @@
   --action-primary-text: #ffffff;
   --action-bg: #ffffff;
   --action-text: #0f172a;
+}
+
+[data-theme="dark"] {
+  --bg: #0f172a;
+  --bg-card: #1e293b;
+  --bg-hover: #334155;
+  --text: #f8fafc;
+  --text-muted: #94a3b8;
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
+  --success: #22c55e;
+  --success-bg: rgba(34, 197, 94, 0.1);
+  --danger: #ef4444;
+  --danger-bg: rgba(239, 68, 68, 0.1);
+  --warning: #f59e0b;
+  --border: #334155;
+
+  /* Component specific - Dark Mode */
+  --wallet-bg: linear-gradient(135deg, #1e3a8a, #3b82f6);
+  --wallet-text: #ffffff;
+  --wallet-label: rgba(255, 255, 255, 0.8);
+  --action-primary-bg: #1e40af;
+  --action-primary-text: #ffffff;
+  --action-bg: #1e293b;
+  --action-text: #f8fafc;
 }
 
 * {
