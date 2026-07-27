@@ -1,7 +1,24 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
+import { useEffect } from 'react'
 import { AuthProvider } from './context/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
+
+function NativeNavigationListener() {
+  const navigate = useNavigate()
+  
+  useEffect(() => {
+    const handleNativeNavigate = (event) => {
+      if (event.detail && event.detail.path) {
+        navigate(event.detail.path)
+      }
+    }
+    window.addEventListener('native-navigate', handleNativeNavigate)
+    return () => window.removeEventListener('native-navigate', handleNativeNavigate)
+  }, [navigate])
+  
+  return null
+}
 
 // Pages
 import LoginPage from './pages/LoginPage'
@@ -26,6 +43,7 @@ import UpstoxCallback from './pages/UpstoxCallback'
 export default function App() {
   return (
     <AuthProvider>
+      <NativeNavigationListener />
       <Routes>
         {/* Public Route */}
         <Route path="/login" element={<LoginPage />} />
