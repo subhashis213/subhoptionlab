@@ -284,11 +284,8 @@ class MonitorService:
         now_ist = datetime.now(IST)
         current_hhmm = now_ist.strftime("%H:%M")
 
-        # Find pending strategies where entry_time <= current time
-        pending_cursor = db.strategies_collection.find({
-            "status": "pending",
-            "entry_time": {"$lte": current_hhmm, "$nin": [None, ""]}
-        })
+        # Find all pending strategies
+        pending_cursor = db.strategies_collection.find({"status": "pending"})
         pending_strats = await pending_cursor.to_list(length=100)
         
         if not pending_strats:
@@ -300,6 +297,11 @@ class MonitorService:
 
         for strat in pending_strats:
             strat_id = strat["_id"]
+            e_time = (strat.get("entry_time") or "")[:5]
+            if e_time and e_time > current_hhmm:
+                # Entry time hasn't arrived yet
+                continue
+
             # Get legs
             legs_cursor = db.strategy_legs_collection.find({"strategy_id": strat_id})
             legs = await legs_cursor.to_list(length=20)

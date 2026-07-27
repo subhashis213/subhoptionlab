@@ -39,8 +39,8 @@ async def create_strategy(req: StrategyCreate, user: dict = Depends(require_user
         "underlying": req.underlying,
         "move_sl_to_cost": req.move_sl_to_cost,
         "status": "pending" if req.entry_time else "draft",
-        "entry_time": req.entry_time if req.entry_time else None,
-        "exit_time": req.exit_time if req.exit_time else None,
+        "entry_time": req.entry_time[:5] if req.entry_time else None,
+        "exit_time": req.exit_time[:5] if req.exit_time else None,
         "created_at": datetime.utcnow(),
         "closed_at": None,
     }
@@ -336,7 +336,7 @@ async def activate_strategy(strategy_id: str, user: dict = Depends(require_user)
                 {"$set": {"strike": resolved_strike, "instrument_key": leg["instrument_key"]}}
             )
 
-    entry_time = strategy.get("entry_time")
+    entry_time = (strategy.get("entry_time") or "")[:5]
     current_hhmm = now.strftime("%H:%M")
 
     # If entry_time is set and in the future today, schedule strategy as pending
