@@ -308,15 +308,17 @@ class LiveFeedHub:
                 for instrument_key, feed_data in feeds.items():
                     self.loop.call_soon_threadsafe(self._broadcast, feed_data)
                     
-                    # Also broadcast for the numeric alias if we have one cached
-                    from papertrade.key_cache import STRING_TO_NUMERIC
+                    # Also broadcast for both STRING_TO_NUMERIC and NUMERIC_TO_STRING aliases
+                    from papertrade.key_cache import STRING_TO_NUMERIC, NUMERIC_TO_STRING
                     norm_key = feed_data.get("instrument_key", instrument_key)
-                    numeric_alias = STRING_TO_NUMERIC.get(norm_key)
-                    if numeric_alias:
-                        # Create a duplicate message with the numeric key so the frontend option chain can match it
-                        alias_data = feed_data.copy()
-                        alias_data["instrument_key"] = numeric_alias
-                        self.loop.call_soon_threadsafe(self._broadcast, alias_data)
+                    alias1 = STRING_TO_NUMERIC.get(norm_key)
+                    alias2 = NUMERIC_TO_STRING.get(norm_key)
+                    
+                    for alias in (alias1, alias2):
+                        if alias and alias != norm_key:
+                            alias_data = feed_data.copy()
+                            alias_data["instrument_key"] = alias
+                            self.loop.call_soon_threadsafe(self._broadcast, alias_data)
                     
         except Exception as e:
             logger.error(f"LiveFeedHub message parse error: {e}")

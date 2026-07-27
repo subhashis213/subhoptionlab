@@ -40,11 +40,19 @@ export default function MarketsPage() {
       keys.push(`NSE_EQ|${selectedUnderlying}`)
     }
     
-    // Add option chain keys
+    // Add option chain keys (both raw colon and piped formats)
     if (optionChain.length > 0) {
       optionChain.forEach(row => {
-        if (row.call_options?.instrument_key) keys.push(row.call_options.instrument_key.replace(':', '|'))
-        if (row.put_options?.instrument_key) keys.push(row.put_options.instrument_key.replace(':', '|'))
+        if (row.call_options?.instrument_key) {
+          const raw = row.call_options.instrument_key
+          keys.push(raw)
+          keys.push(raw.replace(':', '|'))
+        }
+        if (row.put_options?.instrument_key) {
+          const raw = row.put_options.instrument_key
+          keys.push(raw)
+          keys.push(raw.replace(':', '|'))
+        }
       })
     }
     
@@ -54,7 +62,7 @@ export default function MarketsPage() {
       topStocks.losers.forEach(s => keys.push(s.instrument_key))
     }
     
-    return keys;
+    return Array.from(new Set(keys));
   }, [indices, optionChain, isStock, selectedUnderlying, topStocks])
 
   const liveData = useMarketStream(wsKeys)
@@ -396,11 +404,11 @@ export default function MarketsPage() {
                     const ceKey = rawCeKey.replace(':', '|');
                     const peKey = rawPeKey.replace(':', '|');
                     
-                    // New flat format: liveData[key].ltp — with old fallbacks
-                    const ceLive = ceKey ? liveData[ceKey] : null
-                    const peLive = peKey ? liveData[peKey] : null
-                    const ceLtp = ceLive ? (ceLive.ltp || ceLive.last_price || ceLive.ff?.marketFF?.ltpc?.ltp) : row.call_options?.market_data?.ltp
-                    const peLtp = peLive ? (peLive.ltp || peLive.last_price || peLive.ff?.marketFF?.ltpc?.ltp) : row.put_options?.market_data?.ltp
+                    // New flat format: liveData[key].ltp — checking both pipe and raw colon formats
+                    const ceLive = ceKey ? (liveData[ceKey] || liveData[rawCeKey]) : null
+                    const peLive = peKey ? (liveData[peKey] || liveData[rawPeKey]) : null
+                    const ceLtp = ceLive ? (ceLive.ltp ?? ceLive.last_price ?? ceLive.ff?.marketFF?.ltpc?.ltp) : row.call_options?.market_data?.ltp
+                    const peLtp = peLive ? (peLive.ltp ?? peLive.last_price ?? peLive.ff?.marketFF?.ltpc?.ltp) : row.put_options?.market_data?.ltp
 
                     return (
                       <tr 

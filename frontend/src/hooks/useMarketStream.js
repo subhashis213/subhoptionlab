@@ -133,13 +133,13 @@ export default function useMarketStream(keysToSubscribe = []) {
 
     bufferRef.current[key] = msg;
 
-    // Flush to state at 10 FPS (100ms) for ultra-responsive live price ticks
+    // Flush to state at 20 FPS (50ms) for ultra-fast, smooth live price ticks
     if (!timeoutRef.current) {
       timeoutRef.current = setTimeout(() => {
         setMarketData(prev => ({ ...prev, ...bufferRef.current }));
         bufferRef.current = {};
         timeoutRef.current = null;
-      }, 100);
+      }, 50);
     }
   }, []);
 
