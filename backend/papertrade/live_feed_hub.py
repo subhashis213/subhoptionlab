@@ -171,41 +171,74 @@ class LiveFeedHub:
 
     async def _polling_loop(self):
         """
-        REST API polling backup — fetches LTP every 1.5 seconds for all subscribed keys.
-        This is the fallback that keeps data flowing even if the Upstox WebSocket has gaps.
-        It also provides the initial burst of data before the WebSocket warms up.
+        Ultra-fast REST API polling — fetches FULL quotes every 300ms.
+        Uses /v2/market-quote/quotes which returns LTP, change, OHLC, volume, OI.
+        Batches keys in groups of 25 to stay within Upstox API rate limits.
         """
-        from .upstox_guard import fetch_ltp
-        logger.info("LiveFeedHub: Polling fallback loop started.")
+        from .upstox_guard import fetch_quotes
+        logger.info("LiveFeedHub: Fast polling loop started (300ms interval).")
         
         while True:
             try:
-                await asyncio.sleep(1.5)
+                await asyncio.sleep(0.3)  # 300ms — near real-time
                 
                 if not self.active_keys or not self.client_queues:
                     continue
                 
                 keys_list = list(self.active_keys)
-                ltp_data = await fetch_ltp(keys_list)
                 
-                if not ltp_data:
-                    continue
-                
-                # Format each key as a proper instrument update dict
-                for instrument_key, ltp in ltp_data.items():
-                    msg = {
-                        "instrument_key": instrument_key,
-                        "last_price": float(ltp),
-                        "ltp": float(ltp),
-                    }
-                    self._broadcast(msg)
+                # Batch in groups of 25 (Upstox limit)
+                batch_size = 25
+                for i in range(0, len(keys_list), batch_size):
+                    batch = keys_list[i:i + batch_size]
+                    
+                    quotes = await fetch_quotes(batch)
+                    if not quotes:
+                        continue
+                    
+                    for instrument_key, quote in quotes.items():
+                        if not quote or not isinstance(quote, dict):
+                            continue
+                        
+                        ltp = quote.get("last_price", 0)
+                        if not ltp:
+                            continue
+                        
+                        # Build rich message with all available data
+                        ohlc = quote.get("ohlc", {})
+                        close_price = float(ohlc.get("close", 0))
+                        net_change = float(quote.get("net_change", 0))
+                        
+                        # Calculate change_percent from close if not directly available
+                        change_pct = 0.0
+                        if close_price > 0:
+                            change_pct = round((net_change / close_price) * 100, 2)
+                        
+                        # Normalize the instrument key (Upstox sometimes returns with : instead of |)
+                        norm_key = instrument_key.replace(":", "|") if ":" in instrument_key else instrument_key
+                        
+                        msg = {
+                            "instrument_key": norm_key,
+                            "ltp": float(ltp),
+                            "last_price": float(ltp),
+                            "net_change": round(net_change, 2),
+                            "change_percent": change_pct,
+                            "close_price": close_price,
+                            "volume": int(quote.get("volume", 0)),
+                            "oi": int(quote.get("oi", 0)),
+                        }
+                        self._broadcast(msg)
+                    
+                    # Tiny delay between batches to avoid rate limit
+                    if len(keys_list) > batch_size:
+                        await asyncio.sleep(0.05)
                     
             except asyncio.CancelledError:
                 logger.info("LiveFeedHub: Polling loop cancelled.")
                 break
             except Exception as e:
                 logger.error(f"LiveFeedHub polling error: {e}")
-                await asyncio.sleep(3)
+                await asyncio.sleep(1)
 
     def _on_open(self):
         self.connected = True

@@ -205,16 +205,26 @@ async def fetch_quotes(instrument_keys: List[str]) -> Dict[str, dict]:
         loop = asyncio.get_event_loop()
         response = await loop.run_in_executor(
             None,
-            lambda: requests.get(url, params={"instrument_key": instruments_str}, headers=headers, timeout=3)
+            lambda: requests.get(url, params={"instrument_key": instruments_str}, headers=headers, timeout=1.5)
         )
 
         if response.status_code == 200:
             data = response.json().get("data", {})
-            missing_keys = [k for k in instrument_keys if k not in data]
+            # Normalize keys: Upstox returns "NSE_INDEX:Nifty 50", we want "NSE_INDEX|Nifty 50"
+            normalized = {}
+            for k, v in data.items():
+                norm_key = k.replace(":", "|") if ":" in k else k
+                normalized[norm_key] = v
+            # Fill missing keys with fallback
+            missing_keys = [k for k in instrument_keys if k not in normalized]
             if missing_keys:
                 fallback_data = _generate_paper_fallback_quotes(missing_keys)
-                data.update(fallback_data)
-            return data
+                normalized.update(fallback_data)
+            return normalized
+        elif response.status_code == 401:
+            logger.warning(f"Upstox quotes API 401: {response.text[:200]}")
+            await _invalidate_token()
+            return _generate_paper_fallback_quotes(instrument_keys)
         else:
             logger.warning(f"Upstox quotes API error: {response.status_code} {response.text[:200]}")
             return _generate_paper_fallback_quotes(instrument_keys)
