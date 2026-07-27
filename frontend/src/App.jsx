@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { useEffect } from 'react'
 import { AuthProvider } from './context/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -17,6 +17,18 @@ function NativeNavigationListener() {
     return () => window.removeEventListener('native-navigate', handleNativeNavigate)
   }, [navigate])
   
+  return null
+}
+
+function NativePathReporter() {
+  const location = useLocation()
+  
+  useEffect(() => {
+    if (window.AndroidApp && typeof window.AndroidApp.updatePath === 'function') {
+      window.AndroidApp.updatePath(location.pathname)
+    }
+  }, [location])
+
   return null
 }
 
@@ -44,6 +56,7 @@ export default function App() {
   return (
     <AuthProvider>
       <NativeNavigationListener />
+      <NativePathReporter />
       <Routes>
         {/* Public Route */}
         <Route path="/login" element={<LoginPage />} />
