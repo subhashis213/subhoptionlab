@@ -315,12 +315,50 @@ async def fetch_option_chain(instrument_key: str, expiry_date: str) -> dict:
         )
 
         if response.status_code == 200:
-            data = response.json().get("data", {})
+            data = response.json().get("data", [])
             logger.info(f"Successfully fetched option chain for {instrument_key} {expiry_date}. Length: {len(data)}")
+            
+            # Instantly populate STRING_TO_NUMERIC and NUMERIC_TO_STRING cache so WebSocket subscriptions work 100% real-time!
+            try:
+                from .key_cache import STRING_TO_NUMERIC, NUMERIC_TO_STRING
+                # Extract underlying symbol
+                und_name = "NIFTY"
+                if "Nifty Bank" in instrument_key or "BANKNIFTY" in instrument_key:
+                    und_name = "BANKNIFTY"
+                elif "Fin Service" in instrument_key or "FINNIFTY" in instrument_key:
+                    und_name = "FINNIFTY"
+                elif "MID SELECT" in instrument_key or "MIDCAP" in instrument_key:
+                    und_name = "MIDCAPNIFTY"
+                elif "NSE_EQ" in instrument_key:
+                    und_name = instrument_key.split("|")[-1]
+
+                for item in data:
+                    strike = item.get("strike_price")
+                    if not strike:
+                        continue
+                    
+                    # CALL
+                    call_opt = item.get("call_options", {})
+                    num_ce = call_opt.get("instrument_key", "").replace(":", "|")
+                    if num_ce:
+                        str_ce = build_instrument_key(und_name, expiry_date, float(strike), "CE")
+                        STRING_TO_NUMERIC[str_ce] = num_ce
+                        NUMERIC_TO_STRING[num_ce] = str_ce
+
+                    # PUT
+                    put_opt = item.get("put_options", {})
+                    num_pe = put_opt.get("instrument_key", "").replace(":", "|")
+                    if num_pe:
+                        str_pe = build_instrument_key(und_name, expiry_date, float(strike), "PE")
+                        STRING_TO_NUMERIC[str_pe] = num_pe
+                        NUMERIC_TO_STRING[num_pe] = str_pe
+            except Exception as cache_err:
+                logger.error(f"Error populating key_cache in fetch_option_chain: {cache_err}")
+
             return data
         else:
             logger.warning(f"Upstox option chain API error for {instrument_key} {expiry_date}: Status {response.status_code}, Response: {response.text}")
-            return {}
+            return []
 
     except Exception as e:
         logger.error(f"Error fetching option chain from Upstox for {instrument_key} {expiry_date}: {e}")

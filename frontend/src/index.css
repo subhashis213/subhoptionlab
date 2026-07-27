@@ -2144,3 +2144,33 @@ input:focus {
   color: white !important;
   border-radius: 4px;
 }
+
+/* Modal Overlay & Card Styling */
+.modal-backdrop {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background-color: rgba(15, 23, 42, 0.75) !important;
+  backdrop-filter: blur(4px) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 9999 !important;
+  padding: 16px !important;
+}
+
+.modal {
+  background: var(--bg-card, #1e293b) !important;
+  border: 1px solid var(--border, #334155) !important;
+  border-radius: 16px !important;
+  width: 100% !important;
+  max-width: 440px !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
+  overflow: hidden !important;
+  color: var(--text, #f8fafc) !important;
+}
+

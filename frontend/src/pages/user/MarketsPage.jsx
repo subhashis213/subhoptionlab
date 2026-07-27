@@ -421,7 +421,10 @@ export default function MarketsPage() {
                           {ceLtp != null ? (
                             <span 
                               className="oc-ltp"
-                              onClick={() => setSelectedTrade({ strike: row.strike_price, type: 'CE', ltp: Number(ceLtp), symbol: selectedUnderlying, expiry, instrument_key: ceKey })}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setSelectedTrade({ strike: row.strike_price, type: 'CE', ltp: Number(ceLtp || 0), symbol: selectedUnderlying, expiry, instrument_key: ceKey })
+                              }}
                             >
                               {Number(ceLtp).toFixed(2)}
                             </span>
@@ -438,7 +441,10 @@ export default function MarketsPage() {
                           {peLtp != null ? (
                             <span 
                               className="oc-ltp"
-                              onClick={() => setSelectedTrade({ strike: row.strike_price, type: 'PE', ltp: Number(peLtp), symbol: selectedUnderlying, expiry, instrument_key: peKey })}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setSelectedTrade({ strike: row.strike_price, type: 'PE', ltp: Number(peLtp || 0), symbol: selectedUnderlying, expiry, instrument_key: peKey })
+                              }}
                             >
                               {Number(peLtp).toFixed(2)}
                             </span>
