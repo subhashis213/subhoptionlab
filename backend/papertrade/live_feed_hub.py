@@ -224,8 +224,8 @@ class LiveFeedHub:
                             "net_change": round(net_change, 2),
                             "change_percent": change_pct,
                             "close_price": close_price,
-                            "volume": int(quote.get("volume", 0)),
-                            "oi": int(quote.get("oi", 0)),
+                            "volume": int(quote.get("volume") or 0),
+                            "oi": int(quote.get("oi") or 0),
                         }
                         self._broadcast(msg)
                     
