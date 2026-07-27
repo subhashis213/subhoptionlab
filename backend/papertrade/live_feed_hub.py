@@ -56,8 +56,9 @@ def _extract_feeds_from_message(message) -> Dict[str, Any]:
                 oi = mkt.get("openInterest")
             
             if ltp is not None:
+                norm_key = instrument_key.replace(":", "|") if ":" in instrument_key else instrument_key
                 item = {
-                    "instrument_key": instrument_key,
+                    "instrument_key": norm_key,
                     "last_price": float(ltp),
                     "ltp": float(ltp),
                 }
@@ -71,7 +72,7 @@ def _extract_feeds_from_message(message) -> Dict[str, Any]:
                 if oi is not None:
                     item["oi"] = int(oi)
                     
-                result[instrument_key] = item
+                result[norm_key] = item
                 
         return result
     except Exception as e:
@@ -187,8 +188,9 @@ class LiveFeedHub:
                 
                 keys_list = list(self.active_keys)
                 
-                # Upstox API supports up to 500 keys per request for Quotes
-                batch_size = 500
+                # Upstox API Gateway can throw 414 URI Too Long if we send 500 keys in a GET request.
+                # Batching in 75 keeps URL short (~1200 chars), and 150 keys = 2 reqs, well within 50/sec limit.
+                batch_size = 75
                 for i in range(0, len(keys_list), batch_size):
                     batch = keys_list[i:i + batch_size]
                     
