@@ -96,6 +96,11 @@ export default function BrokerConnect() {
 
   const handleManualConnect = async (e) => {
     e.preventDefault();
+    if (!manualToken || manualToken.trim() === '') {
+      setMessage({ text: 'Please paste the token into the text area before submitting.', type: 'error' });
+      return;
+    }
+    
     setLoading(true);
     setMessage({ text: '', type: '' });
 
@@ -105,7 +110,7 @@ export default function BrokerConnect() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           broker: 'upstox',
-          access_token: manualToken,
+          access_token: manualToken.trim(),
         })
       });
 
@@ -341,7 +346,6 @@ export default function BrokerConnect() {
                 onChange={(e) => setManualToken(e.target.value)}
                 placeholder="eyJ0eXAiOiJKV1QiLCJrZX..."
                 rows={3}
-                required
               />
             </div>
             <button type="submit" className="btn-secondary" disabled={loading}>
