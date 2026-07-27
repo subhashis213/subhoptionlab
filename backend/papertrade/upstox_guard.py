@@ -120,22 +120,19 @@ async def fetch_ltp(instrument_keys: List[str]) -> Dict[str, float]:
                     if itoken:
                         result[itoken] = val
                         result[itoken.replace("|", ":")] = val
-            missing_keys = [k for k in instrument_keys if k not in result]
-            if missing_keys:
-                for mk in missing_keys:
-                    result[mk] = _generate_paper_fallback_ltp(mk)
+            # We will not fill missing keys with fake data. If Upstox doesn't have it, we don't have it.
             return result
         elif response.status_code == 401:
             logger.warning(f"Upstox LTP API error: 401 {response.text}")
             await _invalidate_token()
-            return {k: _generate_paper_fallback_ltp(k) for k in instrument_keys}
+            return {}
         else:
             logger.warning(f"Upstox LTP API error: {response.status_code} {response.text[:200]}")
-            return {k: _generate_paper_fallback_ltp(k) for k in instrument_keys}
+            return {}
 
     except Exception as e:
         logger.error(f"Error fetching LTP from Upstox: {e}")
-        return {k: _generate_paper_fallback_ltp(k) for k in instrument_keys}
+        return {}
 
 
 def _generate_paper_fallback_ltp(key: str) -> float:
@@ -216,22 +213,19 @@ async def fetch_quotes(instrument_keys: List[str]) -> Dict[str, dict]:
                 norm_key = k.replace(":", "|") if ":" in k else k
                 normalized[norm_key] = v
             # Fill missing keys with fallback
-            missing_keys = [k for k in instrument_keys if k not in normalized]
-            if missing_keys:
-                fallback_data = _generate_paper_fallback_quotes(missing_keys)
-                normalized.update(fallback_data)
+            # We will not fill missing keys with fake data. If Upstox doesn't have it, we don't have it.
             return normalized
         elif response.status_code == 401:
             logger.warning(f"Upstox quotes API 401: {response.text[:200]}")
             await _invalidate_token()
-            return _generate_paper_fallback_quotes(instrument_keys)
+            return {}
         else:
             logger.warning(f"Upstox quotes API error: {response.status_code} {response.text[:200]}")
-            return _generate_paper_fallback_quotes(instrument_keys)
+            return {}
 
     except Exception as e:
         logger.error(f"Error fetching quotes from Upstox: {e}")
-        return _generate_paper_fallback_quotes(instrument_keys)
+        return {}
 
 def _generate_paper_fallback_quotes(keys: List[str]) -> Dict[str, dict]:
     result = {}

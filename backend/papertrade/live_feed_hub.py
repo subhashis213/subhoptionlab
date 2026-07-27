@@ -176,19 +176,19 @@ class LiveFeedHub:
         Batches keys in groups of 25 to stay within Upstox API rate limits.
         """
         from .upstox_guard import fetch_quotes
-        logger.info("LiveFeedHub: Fast polling loop started (300ms interval).")
+        logger.info("LiveFeedHub: Fast polling loop started (500ms interval).")
         
         while True:
             try:
-                await asyncio.sleep(0.3)  # 300ms — near real-time
+                await asyncio.sleep(0.5)  # 500ms for near real-time, safely within Upstox limits
                 
                 if not self.active_keys or not self.client_queues:
                     continue
                 
                 keys_list = list(self.active_keys)
                 
-                # Batch in groups of 25 (Upstox limit)
-                batch_size = 25
+                # Upstox API supports up to 500 keys per request for Quotes
+                batch_size = 500
                 for i in range(0, len(keys_list), batch_size):
                     batch = keys_list[i:i + batch_size]
                     
