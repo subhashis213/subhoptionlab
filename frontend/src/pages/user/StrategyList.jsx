@@ -107,12 +107,24 @@ export default function StrategyList() {
       ) : (
         <div className="strategy-cards">
           {strategies.map((s) => {
+            const hasBuy = s.legs && s.legs.some(l => l.side === 'BUY' && l.option_type !== 'EQ')
+            const hasSell = s.legs && s.legs.some(l => l.side === 'SELL' && l.option_type !== 'EQ')
+            const isHedged = hasBuy && hasSell
+
             const marginUsed = (s.margin_used && s.margin_used > 0) ? s.margin_used : (
               (s.legs && s.legs.length > 0)
                 ? s.legs.reduce((acc, leg) => {
-                    const lotSize = leg.symbol === 'BANKNIFTY' ? 15 : (leg.symbol === 'NIFTY' ? 25 : (leg.symbol === 'FINNIFTY' ? 25 : (leg.symbol === 'MIDCAPNIFTY' ? 50 : 1)))
+                    const qty = leg.qty || 1
+                    const symbol = leg.symbol || s.underlying || 'NIFTY'
+                    const lotSize = symbol === 'BANKNIFTY' ? 15 : (symbol === 'NIFTY' ? 25 : (symbol === 'FINNIFTY' ? 25 : (symbol === 'MIDCAPNIFTY' ? 50 : 1)))
                     const price = Number(leg.entry_price || leg.limit_price || leg.current_ltp || 0)
-                    return acc + (price * (leg.qty || 1) * lotSize)
+
+                    if (leg.option_type === 'EQ' || leg.side === 'BUY') {
+                      return acc + (price * qty * lotSize)
+                    } else {
+                      const perLot = isHedged ? 35000 : 100000
+                      return acc + (perLot * qty)
+                    }
                   }, 0)
                 : 0
             )
@@ -170,7 +182,7 @@ export default function StrategyList() {
                   padding: '12px 14px'
                 }}>
                   <div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500, marginBottom: '2px' }}>Margin Used</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500, marginBottom: '2px' }}>Margin Blocked</div>
                     <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text)' }}>
                       ₹{Number(marginUsed).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>

@@ -205,7 +205,7 @@ export default function StrategyDetail() {
       <div className="pnl-card">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '12px' }}>
           <div>
-            <span className="pnl-label" style={{ fontSize: '0.75rem' }}>Margin Used</span>
+            <span className="pnl-label" style={{ fontSize: '0.75rem' }}>Margin Blocked</span>
             <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text)', marginTop: '2px' }}>
               ₹{Number(strategy.margin_used || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>

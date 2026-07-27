@@ -36,29 +36,14 @@ async def get_wallet(user: dict = Depends(require_user)):
 
     unrealized_pnl = 0.0
     used_margin = 0.0
-    if active_strat_ids:
-        legs_cursor = db.strategy_legs_collection.find({
-            "strategy_id": {"$in": active_strat_ids},
-            "current_status": "open",
-        })
-        legs = await legs_cursor.to_list(length=500)
-        for leg in legs:
-            entry = leg.get("entry_price", 0)
-            current = leg.get("current_ltp", entry)
-            qty_lots = leg.get("qty", 1)
-            # Lot size lookup
-            from data.stock_registry import get_lot_size
-            underlying = leg.get("symbol", "NIFTY")
-            lot_size = get_lot_size(underlying)
-            total_qty = qty_lots * lot_size
-
-            if leg["side"] == "BUY":
-                unrealized_pnl += (current - entry) * total_qty
-                used_margin += entry * total_qty
-            else:
-                unrealized_pnl += (entry - current) * total_qty
-                # Rough margin for selling options ~ 1 lakh per lot
-                used_margin += 100000 * qty_lots
+    if active_strats:
+        from papertrade.router_strategy import calc_strategy_metrics
+        for s in active_strats:
+            legs_cursor = db.strategy_legs_collection.find({"strategy_id": s["_id"]})
+            legs = await legs_cursor.to_list(length=50)
+            strat_margin, _, strat_pnl = calc_strategy_metrics(legs)
+            used_margin += strat_margin
+            unrealized_pnl += strat_pnl
 
     balance = wallet["virtual_chips_balance"]
     available_margin = max(0.0, balance - used_margin + unrealized_pnl) # Incorporate PnL in margin

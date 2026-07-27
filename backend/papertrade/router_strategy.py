@@ -107,6 +107,81 @@ async def create_strategy(req: StrategyCreate, user: dict = Depends(require_user
 # ── List Strategies ────────────────────────────────────────────────────────────
 
 @router.get("")
+def calc_strategy_metrics(legs: list) -> tuple[float, float, float]:
+    """
+    Calculate (margin_used, current_value, total_pnl) for strategy legs.
+    Following NSE Option Margin Rules:
+    - Long Options (BUY): Margin = Entry Price * Total Qty (Premium Paid)
+    - Short Options (SELL): Blocked Margin = ₹1,00,000 per lot (Naked Sell) or ₹35,000 per lot (Hedged Spread)
+    """
+    if not legs:
+        return 0.0, 0.0, 0.0
+
+    has_buy = any(l.get("side") == "BUY" and l.get("option_type") != "EQ" for l in legs)
+    has_sell = any(l.get("side") == "SELL" and l.get("option_type") != "EQ" for l in legs)
+    is_hedged = has_buy and has_sell
+
+    margin_used = 0.0
+    current_value = 0.0
+    total_pnl = 0.0
+
+    for leg in legs:
+        entry = float(leg.get("entry_price") or 0.0)
+        current = float(leg.get("current_ltp") or 0.0)
+        limit_p = float(leg.get("limit_price") or 0.0)
+        exit_p = float(leg.get("exit_price") or 0.0)
+
+        underlying = leg.get("symbol", "NIFTY")
+        if leg.get("option_type") == "EQ":
+            lot_size = 1
+        else:
+            lot_size = get_lot_size(underlying)
+
+        qty_lots = leg.get("qty", 1)
+        total_qty = qty_lots * lot_size
+
+        eff_entry = entry if entry > 0 else (limit_p if limit_p > 0 else current)
+        eff_current = current if current > 0 else (eff_entry if eff_entry > 0 else 0.0)
+
+        # Margin Calculation
+        if leg.get("option_type") == "EQ" or leg.get("side") == "BUY":
+            leg_margin = eff_entry * total_qty
+        else:
+            per_lot = 35000.0 if is_hedged else 100000.0
+            leg_margin = per_lot * qty_lots
+
+        margin_used += leg_margin
+
+        # Status & P&L
+        status = leg.get("current_status")
+        if status in ("sl_hit", "target_hit", "manually_closed"):
+            eff_exit = exit_p if exit_p > 0 else eff_entry
+            if leg.get("side") == "BUY":
+                pnl = (eff_exit - eff_entry) * total_qty
+                val = eff_exit * total_qty
+            else:
+                pnl = (eff_entry - eff_exit) * total_qty
+                val = leg_margin + pnl
+
+            total_pnl += pnl
+            current_value += val
+        elif status in ("open", "active", "pending_entry"):
+            if leg.get("side") == "BUY":
+                pnl = (eff_current - eff_entry) * total_qty
+                val = eff_current * total_qty
+            else:
+                pnl = (eff_entry - eff_current) * total_qty
+                val = leg_margin + pnl
+
+            total_pnl += pnl
+            current_value += val
+        else:
+            current_value += leg_margin
+
+    return round(margin_used, 2), round(current_value, 2), round(total_pnl, 2)
+
+
+@router.get("/")
 async def list_strategies(
     status_filter: Optional[str] = Query(None, alias="status"),
     skip: int = Query(0, ge=0),
@@ -134,53 +209,14 @@ async def list_strategies(
         legs_cursor = db.strategy_legs_collection.find({"strategy_id": s["_id"]})
         legs = await legs_cursor.to_list(length=20)
 
-        total_pnl = 0.0
-        margin_used = 0.0
-        current_value = 0.0
-
-        for leg in legs:
-            entry = float(leg.get("entry_price") or 0.0)
-            current = float(leg.get("current_ltp") or 0.0)
-            limit_p = float(leg.get("limit_price") or 0.0)
-            exit_p = float(leg.get("exit_price") or 0.0)
-
-            if leg.get("option_type") == "EQ":
-                lot_size = 1
-            else:
-                lot_size = get_lot_size(leg.get("symbol", "NIFTY"))
-            total_qty = leg.get("qty", 1) * lot_size
-
-            # Fallback to limit_price or current_ltp if entry_price is not yet set
-            eff_entry = entry if entry > 0 else (limit_p if limit_p > 0 else current)
-            eff_current = current if current > 0 else (eff_entry if eff_entry > 0 else 0.0)
-
-            leg_invested = eff_entry * total_qty
-            margin_used += leg_invested
-
-            if leg.get("current_status") in ("sl_hit", "target_hit", "manually_closed"):
-                eff_exit = exit_p if exit_p > 0 else eff_entry
-                leg_val = eff_exit * total_qty
-                if leg.get("side") == "BUY":
-                    total_pnl += (eff_exit - eff_entry) * total_qty
-                else:
-                    total_pnl += (eff_entry - eff_exit) * total_qty
-                current_value += leg_val
-            elif leg.get("current_status") == "open":
-                leg_val = eff_current * total_qty
-                if leg.get("side") == "BUY":
-                    total_pnl += (eff_current - eff_entry) * total_qty
-                else:
-                    total_pnl += (eff_entry - eff_current) * total_qty
-                current_value += leg_val
-            else:
-                current_value += leg_invested
+        margin_used, current_value, total_pnl = calc_strategy_metrics(legs)
 
         result.append({
             **s,
             "legs": legs,
-            "total_pnl": round(total_pnl, 2),
-            "margin_used": round(margin_used, 2),
-            "current_value": round(current_value, 2),
+            "total_pnl": total_pnl,
+            "margin_used": margin_used,
+            "current_value": current_value,
             "open_legs": sum(1 for l in legs if l.get("current_status") == "open"),
             "total_legs": len(legs),
         })
@@ -203,55 +239,14 @@ async def get_strategy(strategy_id: str, user: dict = Depends(require_user)):
     legs_cursor = db.strategy_legs_collection.find({"strategy_id": strategy_id})
     legs = await legs_cursor.to_list(length=20)
 
-    # Calculate P&L, margin used, and current value for each leg
-    total_pnl = 0.0
-    margin_used = 0.0
-    current_value = 0.0
-
-    for leg in legs:
-        entry = float(leg.get("entry_price") or 0.0)
-        current = float(leg.get("current_ltp") or 0.0)
-        limit_p = float(leg.get("limit_price") or 0.0)
-        exit_p = float(leg.get("exit_price") or 0.0)
-
-        if leg.get("option_type") == "EQ":
-            lot_size = 1
-        else:
-            lot_size = get_lot_size(leg.get("symbol", "NIFTY"))
-        total_qty = leg.get("qty", 1) * lot_size
-
-        eff_entry = entry if entry > 0 else (limit_p if limit_p > 0 else current)
-        eff_current = current if current > 0 else (eff_entry if eff_entry > 0 else 0.0)
-
-        leg_invested = eff_entry * total_qty
-        margin_used += leg_invested
-
-        if leg.get("current_status") in ("sl_hit", "target_hit", "manually_closed"):
-            eff_exit = exit_p if exit_p > 0 else eff_entry
-            leg_val = eff_exit * total_qty
-            if leg.get("side") == "BUY":
-                leg["realized_pnl"] = round((eff_exit - eff_entry) * total_qty, 2)
-            else:
-                leg["realized_pnl"] = round((eff_entry - eff_exit) * total_qty, 2)
-            total_pnl += leg["realized_pnl"]
-            current_value += leg_val
-        elif leg.get("current_status") == "open":
-            leg_val = eff_current * total_qty
-            if leg.get("side") == "BUY":
-                leg["unrealized_pnl"] = round((eff_current - eff_entry) * total_qty, 2)
-            else:
-                leg["unrealized_pnl"] = round((eff_entry - eff_current) * total_qty, 2)
-            total_pnl += leg.get("unrealized_pnl", 0)
-            current_value += leg_val
-        else:
-            current_value += leg_invested
+    margin_used, current_value, total_pnl = calc_strategy_metrics(legs)
 
     return {
         **strategy,
         "legs": legs,
-        "total_pnl": round(total_pnl, 2),
-        "margin_used": round(margin_used, 2),
-        "current_value": round(current_value, 2),
+        "total_pnl": total_pnl,
+        "margin_used": margin_used,
+        "current_value": current_value,
     }
 
 
