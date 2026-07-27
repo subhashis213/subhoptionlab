@@ -186,59 +186,55 @@ class LiveFeedHub:
 
     async def _polling_loop(self):
         """
-        Ultra-fast REST API polling — fetches FULL quotes every 300ms.
+        REST API polling fallback — fetches FULL quotes every 0.8s.
         Uses /v2/market-quote/quotes which returns LTP, change, OHLC, volume, OI.
-        Batches keys in groups of 25 to stay within Upstox API rate limits.
+        Broadcasts under ALL known aliases so the frontend always gets a match.
         """
         from .upstox_guard import fetch_quotes
-        logger.info("LiveFeedHub: Polling loop started (1.5s interval).")
+        logger.info("LiveFeedHub: Polling loop started (0.8s interval).")
         
         while True:
             try:
-                await asyncio.sleep(1.5)  # 1.5s is completely safe for Upstox limits, WS handles real-time
+                await asyncio.sleep(0.8)
                 
                 if not self.active_keys or not self.client_queues:
                     continue
                 
-                if self.active_keys:
-                    # Upgrade subscriptions if we discovered new aliases
-                    if self.connected and self.streamer:
-                        from papertrade.key_cache import NUMERIC_TO_STRING
-                        keys_to_subscribe = []
-                        for k in self.active_keys:
-                            alias = NUMERIC_TO_STRING.get(k)
-                            # if alias exists and we haven't tracked it as subscribed
-                            if alias and alias not in self.active_keys and alias not in self.upgraded_keys:
-                                keys_to_subscribe.append(alias)
-                                self.upgraded_keys.add(alias)
-                        
-                        if keys_to_subscribe:
-                            logger.info(f"LiveFeedHub dynamically upgrading subscriptions: {len(keys_to_subscribe)} keys")
-                            self._subscribe_chunked(keys_to_subscribe)
-                            # We don't add to active_keys here because active_keys represents frontend requests
+                # Upgrade WebSocket subscriptions if we discovered new aliases
+                if self.connected and self.streamer:
+                    from papertrade.key_cache import NUMERIC_TO_STRING
+                    keys_to_subscribe = []
+                    for k in self.active_keys:
+                        alias = NUMERIC_TO_STRING.get(k)
+                        if alias and alias not in self.active_keys and alias not in self.upgraded_keys:
+                            keys_to_subscribe.append(alias)
+                            self.upgraded_keys.add(alias)
+                    
+                    if keys_to_subscribe:
+                        logger.info(f"LiveFeedHub dynamically upgrading subscriptions: {len(keys_to_subscribe)} keys")
+                        self._subscribe_chunked(keys_to_subscribe)
                 
-                # Limit to 400 keys to avoid runaway rate limits if user opens many chains
+                # Limit to 400 keys to avoid runaway rate limits
                 keys_list = list(self.active_keys)[:400]
                 
-                # Upstox API Gateway can throw 414 URI Too Long if we send 500 keys in a GET request.
-                # Batching in 75 keeps URL short (~1200 chars).
+                # Batch in groups of 75 to keep URL short
                 batch_size = 75
                 for i in range(0, len(keys_list), batch_size):
                     batch = keys_list[i:i + batch_size]
                     
-                    # Pace requests to avoid Upstox 429 rate limit!
                     if i > 0:
-                        await asyncio.sleep(1.0)
+                        await asyncio.sleep(0.5)
                     
                     quotes = await fetch_quotes(batch)
                     if not quotes:
                         continue
                     
+                    from papertrade.key_cache import STRING_TO_NUMERIC, NUMERIC_TO_STRING
+                    
                     for instrument_key, quote in quotes.items():
                         if not quote or not isinstance(quote, dict):
                             continue
                         
-                        # Build rich message with all available data
                         ltp = quote.get("last_price", 0)
                         if not ltp:
                             continue
@@ -247,16 +243,13 @@ class LiveFeedHub:
                         close_price = float(ohlc.get("close", 0))
                         net_change = float(quote.get("net_change", 0))
                         
-                        # Calculate change_percent from close if not directly available
                         change_pct = 0.0
                         if close_price > 0:
                             change_pct = round((net_change / close_price) * 100, 2)
                         
-                        # Normalize the instrument key (Upstox sometimes returns with : instead of |)
                         norm_key = instrument_key.replace(":", "|") if ":" in instrument_key else instrument_key
                         
-                        msg = {
-                            "instrument_key": norm_key,
+                        base_msg = {
                             "ltp": float(ltp),
                             "last_price": float(ltp),
                             "net_change": round(net_change, 2),
@@ -265,9 +258,25 @@ class LiveFeedHub:
                             "volume": int(quote.get("volume") or 0),
                             "oi": int(quote.get("oi") or 0),
                         }
-                        self._broadcast(msg)
+                        
+                        # Collect ALL aliases for this instrument
+                        all_keys = {norm_key, instrument_key}
+                        a1 = STRING_TO_NUMERIC.get(norm_key)
+                        a2 = NUMERIC_TO_STRING.get(norm_key)
+                        if a1: all_keys.add(a1)
+                        if a2: all_keys.add(a2)
+                        # Also check the original instrument_key
+                        a3 = STRING_TO_NUMERIC.get(instrument_key)
+                        a4 = NUMERIC_TO_STRING.get(instrument_key)
+                        if a3: all_keys.add(a3)
+                        if a4: all_keys.add(a4)
+                        
+                        # Broadcast under every known alias
+                        for key in all_keys:
+                            msg = base_msg.copy()
+                            msg["instrument_key"] = key
+                            self._broadcast(msg)
                     
-                    # Delay between batches to avoid rate limit (429)
                     if len(keys_list) > batch_size:
                         await asyncio.sleep(0.2)
                     
@@ -346,18 +355,22 @@ class LiveFeedHub:
 
     def subscribe_keys(self, instrument_keys: list):
         new_keys_to_subscribe = []
-        from papertrade.key_cache import NUMERIC_TO_STRING
+        from papertrade.key_cache import NUMERIC_TO_STRING, STRING_TO_NUMERIC
         
         for k in instrument_keys:
             if self.key_subscribers[k] == 0:
-                # If it's a numeric key and we already know the string alias, subscribe to the string alias
-                alias = NUMERIC_TO_STRING.get(k, k)
-                new_keys_to_subscribe.append(alias)
+                # Subscribe both the original key AND any known alias
+                alias = NUMERIC_TO_STRING.get(k) or STRING_TO_NUMERIC.get(k)
+                new_keys_to_subscribe.append(k)
+                if alias and alias != k:
+                    new_keys_to_subscribe.append(alias)
             self.key_subscribers[k] += 1
             self.active_keys.add(k)
             
         if new_keys_to_subscribe and self.connected and self.streamer:
-            self._subscribe_chunked(new_keys_to_subscribe)
+            # Deduplicate
+            unique = list(set(new_keys_to_subscribe))
+            self._subscribe_chunked(unique)
             
     def unsubscribe_keys(self, instrument_keys: list):
         keys_to_unsubscribe = []
