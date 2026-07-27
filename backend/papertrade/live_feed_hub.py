@@ -95,6 +95,7 @@ class LiveFeedHub:
             
         self.streamer = None
         self.active_keys: Set[str] = set()
+        self.upgraded_keys: Set[str] = set()
         
         # We track how many clients are subscribed to each key so we can unsubscribe when 0
         self.key_subscribers = defaultdict(int)
@@ -186,6 +187,23 @@ class LiveFeedHub:
                 if not self.active_keys or not self.client_queues:
                     continue
                 
+                if self.active_keys:
+                    # Upgrade subscriptions if we discovered new aliases
+                    if self.connected and self.streamer:
+                        from papertrade.key_cache import NUMERIC_TO_STRING
+                        keys_to_subscribe = []
+                        for k in self.active_keys:
+                            alias = NUMERIC_TO_STRING.get(k)
+                            # if alias exists and we haven't tracked it as subscribed
+                            if alias and alias not in self.active_keys and alias not in self.upgraded_keys:
+                                keys_to_subscribe.append(alias)
+                                self.upgraded_keys.add(alias)
+                        
+                        if keys_to_subscribe:
+                            logger.info(f"LiveFeedHub dynamically upgrading subscriptions: {keys_to_subscribe}")
+                            self.streamer.subscribe(keys_to_subscribe, mode="full")
+                            # We don't add to active_keys here because active_keys represents frontend requests
+                
                 # Limit to 400 keys to avoid runaway rate limits if user opens many chains
                 keys_list = list(self.active_keys)[:400]
                 
@@ -273,6 +291,16 @@ class LiveFeedHub:
                 for instrument_key, feed_data in feeds.items():
                     self.loop.call_soon_threadsafe(self._broadcast, feed_data)
                     
+                    # Also broadcast for the numeric alias if we have one cached
+                    from papertrade.key_cache import STRING_TO_NUMERIC
+                    norm_key = feed_data.get("instrument_key", instrument_key)
+                    numeric_alias = STRING_TO_NUMERIC.get(norm_key)
+                    if numeric_alias:
+                        # Create a duplicate message with the numeric key so the frontend option chain can match it
+                        alias_data = feed_data.copy()
+                        alias_data["instrument_key"] = numeric_alias
+                        self.loop.call_soon_threadsafe(self._broadcast, alias_data)
+                    
         except Exception as e:
             logger.error(f"LiveFeedHub message parse error: {e}")
 
@@ -299,9 +327,13 @@ class LiveFeedHub:
 
     def subscribe_keys(self, instrument_keys: list):
         new_keys_to_subscribe = []
+        from papertrade.key_cache import NUMERIC_TO_STRING
+        
         for k in instrument_keys:
             if self.key_subscribers[k] == 0:
-                new_keys_to_subscribe.append(k)
+                # If it's a numeric key and we already know the string alias, subscribe to the string alias
+                alias = NUMERIC_TO_STRING.get(k, k)
+                new_keys_to_subscribe.append(alias)
             self.key_subscribers[k] += 1
             self.active_keys.add(k)
             

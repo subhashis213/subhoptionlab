@@ -542,6 +542,12 @@ async def live_market_websocket(websocket: WS):
     finally:
         live_feed_hub.unregister_client(q)
 
+@app.get("/api/debug/fetch-quote")
+async def debug_fetch_quote(key: str = "NSE_FO|61599"):
+    from papertrade.upstox_guard import fetch_quotes
+    quotes = await fetch_quotes([key])
+    return {"key": key, "quotes": quotes}
+
 @app.get("/api/debug/live-feed")
 async def debug_live_feed():
     from papertrade.live_feed_hub import live_feed_hub

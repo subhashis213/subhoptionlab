@@ -212,7 +212,20 @@ async def fetch_quotes(instrument_keys: List[str]) -> Dict[str, dict]:
             for k, v in data.items():
                 norm_key = k.replace(":", "|") if ":" in k else k
                 normalized[norm_key] = v
-            # Fill missing keys with fallback
+                
+                # Upstox might alias a numeric key (NSE_FO|61599) request to a string key response.
+                # Ensure the numeric key is also mapped so callers waiting for it get the data.
+                itoken = v.get("instrument_token")
+                if itoken:
+                    numeric_norm = itoken.replace(":", "|")
+                    normalized[itoken] = v
+                    normalized[numeric_norm] = v
+                    
+                    # Update global cache so the websocket can also resolve this alias for live streaming
+                    from papertrade.key_cache import STRING_TO_NUMERIC, NUMERIC_TO_STRING
+                    STRING_TO_NUMERIC[norm_key] = numeric_norm
+                    NUMERIC_TO_STRING[numeric_norm] = norm_key
+
             # We will not fill missing keys with fake data. If Upstox doesn't have it, we don't have it.
             return normalized
         elif response.status_code == 401:
