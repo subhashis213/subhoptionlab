@@ -38,12 +38,26 @@ class LiveFeedHub:
         self.connected = False
         self.initialized = True
 
+
     async def start(self):
         self.loop = asyncio.get_event_loop()
         token = await _get_access_token()
         if not token:
-            logger.warning("No Upstox token available for LiveFeedHub")
+            logger.warning("No Upstox token available for LiveFeedHub. Will retry when token is saved.")
             return
+        
+        await self._start_with_token(token)
+    
+    async def _start_with_token(self, token: str):
+        """Internal method to (re)start the streamer with a given token."""
+        # Stop existing streamer if running
+        if self.streamer:
+            try:
+                self.streamer.disconnect()
+            except Exception:
+                pass
+            self.streamer = None
+            self.connected = False
             
         configuration = upstox_client.Configuration()
         configuration.access_token = token
@@ -60,6 +74,19 @@ class LiveFeedHub:
         self._thread = threading.Thread(target=self.streamer.connect, daemon=True)
         self._thread.start()
         logger.info("LiveFeedHub Upstox WebSocket thread started.")
+
+    async def restart_with_new_token(self):
+        """Call this after a new token is saved to restart the live data stream."""
+        logger.info("LiveFeedHub: Restarting with new token...")
+        token = await _get_access_token()
+        if not token:
+            logger.warning("LiveFeedHub: No token found after restart attempt.")
+            return
+        if self.loop is None:
+            self.loop = asyncio.get_event_loop()
+        await self._start_with_token(token)
+        logger.info("LiveFeedHub: Successfully restarted with new token.")
+
 
     def _on_open(self):
         self.connected = True

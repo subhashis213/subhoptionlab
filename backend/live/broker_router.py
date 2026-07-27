@@ -67,6 +67,14 @@ async def connect_broker(
     # Optionally update the .env or global memory for local execution
     os.environ["UPSTOX_ACCESS_TOKEN"] = access_token
     
+    # Restart live data feed with new token
+    try:
+        from papertrade.live_feed_hub import live_feed_hub
+        import asyncio
+        asyncio.create_task(live_feed_hub.restart_with_new_token())
+    except Exception as e:
+        pass
+    
     return {"status": "success", "message": f"{broker} connected successfully"}
 
 
@@ -184,6 +192,15 @@ async def handle_oauth_callback(
                 doc,
                 upsert=True
             )
+            
+            # Restart live data feed with new token (no server restart needed)
+            try:
+                from papertrade.live_feed_hub import live_feed_hub
+                import asyncio
+                asyncio.create_task(live_feed_hub.restart_with_new_token())
+            except Exception as e:
+                logger.warning(f"LiveFeedHub restart skipped: {e}")
+            
             return {
                 "status": "success",
                 "message": "Upstox account connected successfully!",

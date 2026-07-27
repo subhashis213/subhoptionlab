@@ -326,33 +326,30 @@ export default function BrokerConnect() {
         </form>
       </div>
 
-      {/* Manual Access Token Option */}
+      {/* Manual Access Token - Clear & Always Visible Alternative */}
       <div className="manual-section">
-        <button 
-          className="manual-toggle-btn" 
-          type="button" 
-          onClick={() => setShowManual(!showManual)}
-        >
-          <span>Advanced: Paste Raw Access Token Manually</span>
-          {showManual ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-        </button>
-
-        {showManual && (
-          <form className="manual-form" onSubmit={handleManualConnect}>
-            <p className="field-hint">If you already have a 24h JWT token, paste it here directly.</p>
-            <div className="form-group">
-              <textarea 
-                value={manualToken}
-                onChange={(e) => setManualToken(e.target.value)}
-                placeholder="eyJ0eXAiOiJKV1QiLCJrZX..."
-                rows={3}
-              />
-            </div>
-            <button type="submit" className="btn-secondary" disabled={loading}>
-              Save Raw Access Token
-            </button>
-          </form>
-        )}
+        <div className="manual-header">
+          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+            📋 Alternative: Got your token from Upstox API directly?
+          </span>
+        </div>
+        <form className="manual-form" onSubmit={handleManualConnect}>
+          <div className="form-group">
+            <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>
+              Paste your Upstox Access Token (get it from <a href="https://account.upstox.com/developer/apps" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)' }}>Upstox Developer Console</a>)
+            </label>
+            <textarea 
+              value={manualToken}
+              onChange={(e) => setManualToken(e.target.value)}
+              placeholder="eyJ0eXAiOiJKV1QiLCJrZXkiOiJ1a... (paste your full token here)"
+              rows={3}
+              style={{ width: '100%', resize: 'vertical' }}
+            />
+          </div>
+          <button type="submit" className="btn-secondary" disabled={loading || !manualToken.trim()}>
+            {loading ? 'Saving...' : '✓ Save & Activate Token'}
+          </button>
+        </form>
       </div>
     </div>
   );
