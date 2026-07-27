@@ -186,9 +186,13 @@ class LiveFeedHub:
 
     async def _polling_loop(self):
         """
-        REST API polling fallback — fetches FULL quotes every 0.8s.
-        Uses /v2/market-quote/quotes which returns LTP, change, OHLC, volume, OI.
-        Broadcasts under ALL known aliases so the frontend always gets a match.
+        REST API polling — fetches live quotes every 0.8s.
+        
+        KEY INSIGHT: Upstox /v2/market-quote/quotes ONLY accepts string-format keys
+        (e.g. NSE_FO|BANKNIFTY26JUL2857100CE), NOT numeric keys (NSE_FO|61599).
+        
+        This loop resolves every numeric key to its string alias before fetching,
+        then broadcasts under ALL known aliases so the frontend always finds a match.
         """
         from .upstox_guard import fetch_quotes
         logger.info("LiveFeedHub: Polling loop started (0.8s interval).")
@@ -200,27 +204,50 @@ class LiveFeedHub:
                 if not self.active_keys or not self.client_queues:
                     continue
                 
-                # Upgrade WebSocket subscriptions if we discovered new aliases
+                from papertrade.key_cache import NUMERIC_TO_STRING, STRING_TO_NUMERIC
+                
+                # Upgrade WebSocket subscriptions if we discovered new string aliases
                 if self.connected and self.streamer:
-                    from papertrade.key_cache import NUMERIC_TO_STRING
                     keys_to_subscribe = []
-                    for k in self.active_keys:
+                    for k in list(self.active_keys):
                         alias = NUMERIC_TO_STRING.get(k)
                         if alias and alias not in self.active_keys and alias not in self.upgraded_keys:
                             keys_to_subscribe.append(alias)
                             self.upgraded_keys.add(alias)
-                    
                     if keys_to_subscribe:
-                        logger.info(f"LiveFeedHub dynamically upgrading subscriptions: {len(keys_to_subscribe)} keys")
+                        logger.info(f"LiveFeedHub upgrading WS subscriptions: {len(keys_to_subscribe)} string keys")
                         self._subscribe_chunked(keys_to_subscribe)
                 
-                # Limit to 400 keys to avoid runaway rate limits
-                keys_list = list(self.active_keys)[:400]
+                # ── KEY FIX: resolve every numeric key to its string alias ──────
+                # Upstox REST API needs the string-format key (NSE_FO|BANKNIFTY…)
+                # The numeric format (NSE_FO|61599) returns empty results.
+                resolved_set = {}   # string_key → {numeric_key, ...}  (for reverse lookup)
+                for k in list(self.active_keys):
+                    # Strip colon duplicates — we already have the pipe variant
+                    norm = k.replace(":", "|") if ":" in k else k
+                    
+                    # If it looks numeric (contains only digits after |), look up string alias
+                    part = norm.split("|")[-1] if "|" in norm else norm
+                    if part.isdigit():
+                        string_key = NUMERIC_TO_STRING.get(norm)
+                        if string_key:
+                            resolved_set.setdefault(string_key, set()).add(norm)
+                        else:
+                            # No alias yet — try to fetch the numeric key directly
+                            resolved_set.setdefault(norm, set()).add(norm)
+                    else:
+                        # Already a string key
+                        resolved_set.setdefault(norm, set()).add(norm)
+                        # Also track the numeric alias if known
+                        num = STRING_TO_NUMERIC.get(norm)
+                        if num:
+                            resolved_set[norm].add(num)
                 
-                # Batch in groups of 75 to keep URL short
+                fetch_keys = list(resolved_set.keys())[:400]
+                
                 batch_size = 75
-                for i in range(0, len(keys_list), batch_size):
-                    batch = keys_list[i:i + batch_size]
+                for i in range(0, len(fetch_keys), batch_size):
+                    batch = fetch_keys[i:i + batch_size]
                     
                     if i > 0:
                         await asyncio.sleep(0.5)
@@ -228,8 +255,6 @@ class LiveFeedHub:
                     quotes = await fetch_quotes(batch)
                     if not quotes:
                         continue
-                    
-                    from papertrade.key_cache import STRING_TO_NUMERIC, NUMERIC_TO_STRING
                     
                     for instrument_key, quote in quotes.items():
                         if not quote or not isinstance(quote, dict):
@@ -242,10 +267,7 @@ class LiveFeedHub:
                         ohlc = quote.get("ohlc", {})
                         close_price = float(ohlc.get("close", 0))
                         net_change = float(quote.get("net_change", 0))
-                        
-                        change_pct = 0.0
-                        if close_price > 0:
-                            change_pct = round((net_change / close_price) * 100, 2)
+                        change_pct = round((net_change / close_price) * 100, 2) if close_price > 0 else 0.0
                         
                         norm_key = instrument_key.replace(":", "|") if ":" in instrument_key else instrument_key
                         
@@ -260,16 +282,18 @@ class LiveFeedHub:
                         }
                         
                         # Collect ALL aliases for this instrument
-                        all_keys = {norm_key, instrument_key}
+                        all_keys: set = {norm_key, instrument_key}
+                        # From key_cache
                         a1 = STRING_TO_NUMERIC.get(norm_key)
                         a2 = NUMERIC_TO_STRING.get(norm_key)
                         if a1: all_keys.add(a1)
                         if a2: all_keys.add(a2)
-                        # Also check the original instrument_key
-                        a3 = STRING_TO_NUMERIC.get(instrument_key)
-                        a4 = NUMERIC_TO_STRING.get(instrument_key)
-                        if a3: all_keys.add(a3)
-                        if a4: all_keys.add(a4)
+                        # From our resolved_set mapping
+                        all_keys.update(resolved_set.get(norm_key, set()))
+                        # Colon variants (frontend might store either form)
+                        for k in list(all_keys):
+                            if "|" in k:
+                                all_keys.add(k.replace("|", ":"))
                         
                         # Broadcast under every known alias
                         for key in all_keys:
@@ -277,7 +301,7 @@ class LiveFeedHub:
                             msg["instrument_key"] = key
                             self._broadcast(msg)
                     
-                    if len(keys_list) > batch_size:
+                    if len(fetch_keys) > batch_size:
                         await asyncio.sleep(0.2)
                     
             except asyncio.CancelledError:

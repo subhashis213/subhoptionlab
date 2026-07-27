@@ -551,15 +551,43 @@ async def debug_fetch_quote(key: str = "NSE_FO|61599"):
 @app.get("/api/debug/live-feed")
 async def debug_live_feed():
     from papertrade.live_feed_hub import live_feed_hub
-    from papertrade.upstox_guard import _get_access_token
+    from papertrade.upstox_guard import _get_access_token, fetch_quotes
+    from papertrade.key_cache import NUMERIC_TO_STRING, STRING_TO_NUMERIC
     token = await _get_access_token()
+    
+    # Show the resolved keys (what the polling loop will actually fetch)
+    active = list(live_feed_hub.active_keys)[:20]
+    resolved = {}
+    for k in active[:5]:
+        norm = k.replace(":", "|") if ":" in k else k
+        part = norm.split("|")[-1] if "|" in norm else norm
+        if part.isdigit():
+            resolved[k] = {"type": "numeric", "string_alias": NUMERIC_TO_STRING.get(norm)}
+        else:
+            resolved[k] = {"type": "string", "numeric_alias": STRING_TO_NUMERIC.get(norm)}
+    
+    # Test a sample quote fetch
+    sample_result = None
+    if active:
+        sample_key = active[0]
+        norm = sample_key.replace(":", "|")
+        part = norm.split("|")[-1] if "|" in norm else norm
+        fetch_key = NUMERIC_TO_STRING.get(norm) if part.isdigit() else norm
+        if fetch_key:
+            quotes = await fetch_quotes([fetch_key])
+            sample_result = {"fetched_with": fetch_key, "got_data": bool(quotes), "keys_returned": list(quotes.keys())[:3]}
+    
     return {
         "connected": live_feed_hub.connected,
         "active_keys_count": len(live_feed_hub.active_keys),
-        "active_keys": list(live_feed_hub.active_keys)[:10],
+        "active_keys_sample": active,
+        "resolved_keys_sample": resolved,
+        "sample_fetch_result": sample_result,
         "client_queues_count": len(live_feed_hub.client_queues),
         "poll_task_active": live_feed_hub._poll_task is not None and not live_feed_hub._poll_task.done(),
         "has_token": bool(token),
+        "key_cache_size": {"numeric_to_string": len(NUMERIC_TO_STRING), "string_to_numeric": len(STRING_TO_NUMERIC)},
+        "key_cache_sample": {k: v for k, v in list(NUMERIC_TO_STRING.items())[:3]},
     }
 
 
