@@ -252,11 +252,11 @@ export default function MarketsPage() {
                 <h3>{idx.symbol}</h3>
               </div>
               <div className="stat-value" style={{ fontSize: '1.4rem' }}>
-                {currentLtp.toFixed(2)}
+                {Number(currentLtp || 0).toFixed(2)}
               </div>
               <div className={`stat-change ${liveChange >= 0 ? 'profit' : 'loss'}`}>
                 {liveChange >= 0 ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
-                <span>{liveChange > 0 ? '+' : ''}{liveChange?.toFixed(2)} ({liveChangePct?.toFixed(2)}%)</span>
+                <span>{liveChange > 0 ? '+' : ''}{Number(liveChange || 0).toFixed(2)} ({Number(liveChangePct || 0).toFixed(2)}%)</span>
               </div>
             </div>
           )})
@@ -317,7 +317,7 @@ export default function MarketsPage() {
             {spotPrice > 0 ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '24px', flexWrap: 'wrap' }}>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>₹{spotPrice.toFixed(2)}</div>
+                  <div style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>₹{Number(spotPrice || 0).toFixed(2)}</div>
                 </div>
                 <div style={{ display: 'flex', gap: '12px' }}>
                   <button 
@@ -352,7 +352,7 @@ export default function MarketsPage() {
         <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
             <h3 style={{ margin: 0 }}>{selectedUnderlying} {isStock ? 'Stock Option Chain' : 'Option Chain'}</h3>
-            {spotPrice > 0 && <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Live Spot: <span style={{ color: 'var(--text)', fontWeight: 600 }}>{spotPrice.toFixed(2)}</span></span>}
+            {spotPrice > 0 && <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Live Spot: <span style={{ color: 'var(--text)', fontWeight: 600 }}>{Number(spotPrice || 0).toFixed(2)}</span></span>}
           </div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Expiry:</span>

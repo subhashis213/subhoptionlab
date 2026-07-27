@@ -110,7 +110,7 @@ function subscribeKeys(keys) {
 export default function useMarketStream(keysToSubscribe = []) {
   const [marketData, setMarketData] = useState({});
   const bufferRef = useRef({});
-  const rafRef = useRef(null);
+  const timeoutRef = useRef(null);
 
   const handleMessage = useCallback((msg) => {
     /**
@@ -133,13 +133,13 @@ export default function useMarketStream(keysToSubscribe = []) {
 
     bufferRef.current[key] = msg;
 
-    // Flush to state at ~60 FPS
-    if (!rafRef.current) {
-      rafRef.current = requestAnimationFrame(() => {
+    // Flush to state at 5 FPS to prevent React rendering lag on massive tables
+    if (!timeoutRef.current) {
+      timeoutRef.current = setTimeout(() => {
         setMarketData(prev => ({ ...prev, ...bufferRef.current }));
         bufferRef.current = {};
-        rafRef.current = null;
-      });
+        timeoutRef.current = null;
+      }, 200);
     }
   }, []);
 
@@ -163,9 +163,9 @@ export default function useMarketStream(keysToSubscribe = []) {
         connectionCount = 0;
         disconnectWs();
       }
-      if (rafRef.current) {
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
       }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
