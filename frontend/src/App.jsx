@@ -24,8 +24,14 @@ function NativePathReporter() {
   const location = useLocation()
   
   useEffect(() => {
-    if (window.AndroidApp && typeof window.AndroidApp.updatePath === 'function') {
-      window.AndroidApp.updatePath(location.pathname)
+    if (window.AndroidApp) {
+      if (typeof window.AndroidApp.updatePath === 'function') {
+        window.AndroidApp.updatePath(location.pathname)
+      }
+      if (typeof window.AndroidApp.updateTheme === 'function') {
+        const savedTheme = localStorage.getItem('theme') || 'dark'
+        window.AndroidApp.updateTheme(savedTheme)
+      }
     }
   }, [location])
 

@@ -30,7 +30,7 @@ export default function BottomNav() {
   const navigate = useNavigate()
 
   const tabs = isAdmin ? adminTabs : userTabs
-  const isNativeApp = navigator.userAgent.includes('MobileNativeApp')
+  const isNativeApp = typeof window !== 'undefined' && (window.AndroidApp !== undefined || navigator.userAgent.includes('MobileNativeApp'))
 
   if (isNativeApp) return null
 

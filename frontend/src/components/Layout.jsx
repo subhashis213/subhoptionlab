@@ -7,6 +7,9 @@ export default function Layout() {
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') || 'dark'
     document.documentElement.setAttribute('data-theme', savedTheme)
+    if (typeof window !== 'undefined' && window.AndroidApp && typeof window.AndroidApp.updateTheme === 'function') {
+      window.AndroidApp.updateTheme(savedTheme)
+    }
   }, [])
 
   return (
