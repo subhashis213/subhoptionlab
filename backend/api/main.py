@@ -125,6 +125,23 @@ async def startup_event():
     except Exception as e:
         logger.warning("Background market data auto-sync failed to start: %s", e)
 
+    # Step 4 (background): Keep Render Free Tier Awake (ping every 10 mins)
+    async def _keep_alive():
+        import asyncio
+        import urllib.request
+        url = "https://subhoptionlab.onrender.com/api/instruments/expiries"
+        while True:
+            await asyncio.sleep(600)  # Wait 10 minutes
+            try:
+                # Fire and forget ping to self
+                loop = asyncio.get_event_loop()
+                await loop.run_in_executor(None, lambda: urllib.request.urlopen(url, timeout=10).read())
+                logger.info("Sent keep-alive ping to Render to prevent sleep.")
+            except Exception as e:
+                logger.warning("Keep-alive ping failed: %s", e)
+                
+    asyncio.create_task(_keep_alive())
+
 
 @app.on_event("shutdown")
 async def shutdown_event():
