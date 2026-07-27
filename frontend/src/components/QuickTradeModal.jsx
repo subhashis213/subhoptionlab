@@ -17,16 +17,16 @@ export default function QuickTradeModal({ tradeDetails, onClose, onExecute }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
-  if (!tradeDetails) return null
-
   const { strike, type, ltp, symbol, expiry, initialAction } = tradeDetails || {}
 
-  // Update action when tradeDetails changes
+  // Update action when tradeDetails changes - MUST be called before any early return!
   useEffect(() => {
     if (initialAction) {
       setAction(initialAction)
     }
   }, [initialAction])
+
+  if (!tradeDetails) return null
 
   const handleExecute = async () => {
     setLoading(true)
