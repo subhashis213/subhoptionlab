@@ -55,12 +55,18 @@ function connectWs() {
     };
 
     globalWs.onclose = (e) => {
-      globalWs = null;
-      isConnecting = false;
-      console.log(`[MarketStream] Closed (${e.code}). Reconnecting in 2s...`);
-      clearTimeout(reconnectTimeout);
-      if (connectionCount > 0) {
-        reconnectTimeout = setTimeout(connectWs, 2000);
+      console.log(`[MarketStream] Closed (${e.code}).`);
+      
+      // Only nullify and trigger reconnect if THIS socket is still the active one.
+      // If globalWs was already replaced by a newer connection, ignore this event.
+      if (e.target === globalWs) {
+        globalWs = null;
+        isConnecting = false;
+        console.log(`[MarketStream] Reconnecting in 2s...`);
+        clearTimeout(reconnectTimeout);
+        if (connectionCount > 0) {
+          reconnectTimeout = setTimeout(connectWs, 2000);
+        }
       }
     };
 
@@ -85,10 +91,18 @@ function disconnectWs() {
 }
 
 function subscribeKeys(keys) {
-  const newKeys = keys.filter(k => !subscriptionKeys.has(k));
-  newKeys.forEach(k => subscriptionKeys.add(k));
-  if (globalWs && globalWs.readyState === WebSocket.OPEN && newKeys.length > 0) {
-    globalWs.send(JSON.stringify({ action: 'subscribe', keys: newKeys }));
+  let hasNew = false;
+  keys.forEach(k => {
+    if (!subscriptionKeys.has(k)) {
+      subscriptionKeys.add(k);
+      hasNew = true;
+    }
+  });
+  
+  // Always send ALL subscription keys when subscribing to ensure we don't miss any if the backend restarted
+  // or if we just reconnected, but only trigger a send if there's actually a new key or if it's the first connect
+  if (globalWs && globalWs.readyState === WebSocket.OPEN && keys.length > 0) {
+    globalWs.send(JSON.stringify({ action: 'subscribe', keys: Array.from(subscriptionKeys) }));
   }
 }
 
