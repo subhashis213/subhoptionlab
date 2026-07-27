@@ -177,19 +177,20 @@ class LiveFeedHub:
         Batches keys in groups of 25 to stay within Upstox API rate limits.
         """
         from .upstox_guard import fetch_quotes
-        logger.info("LiveFeedHub: Fast polling loop started (500ms interval).")
+        logger.info("LiveFeedHub: Polling loop started (1.5s interval).")
         
         while True:
             try:
-                await asyncio.sleep(0.5)  # 500ms for near real-time, safely within Upstox limits
+                await asyncio.sleep(1.5)  # 1.5s is completely safe for Upstox limits, WS handles real-time
                 
                 if not self.active_keys or not self.client_queues:
                     continue
                 
-                keys_list = list(self.active_keys)
+                # Limit to 400 keys to avoid runaway rate limits if user opens many chains
+                keys_list = list(self.active_keys)[:400]
                 
                 # Upstox API Gateway can throw 414 URI Too Long if we send 500 keys in a GET request.
-                # Batching in 75 keeps URL short (~1200 chars), and 150 keys = 2 reqs, well within 50/sec limit.
+                # Batching in 75 keeps URL short (~1200 chars).
                 batch_size = 75
                 for i in range(0, len(keys_list), batch_size):
                     batch = keys_list[i:i + batch_size]
@@ -231,9 +232,9 @@ class LiveFeedHub:
                         }
                         self._broadcast(msg)
                     
-                    # Tiny delay between batches to avoid rate limit
+                    # Delay between batches to avoid rate limit (429)
                     if len(keys_list) > batch_size:
-                        await asyncio.sleep(0.05)
+                        await asyncio.sleep(0.2)
                     
             except asyncio.CancelledError:
                 logger.info("LiveFeedHub: Polling loop cancelled.")

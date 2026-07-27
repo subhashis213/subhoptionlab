@@ -219,6 +219,10 @@ async def fetch_quotes(instrument_keys: List[str]) -> Dict[str, dict]:
             logger.warning(f"Upstox quotes API 401: {response.text[:200]}")
             await _invalidate_token()
             return {}
+        elif response.status_code == 429:
+            logger.warning(f"Upstox quotes API rate limit (429). Throttling.")
+            await asyncio.sleep(2)
+            return {}
         else:
             logger.warning(f"Upstox quotes API error: {response.status_code} {response.text[:200]}")
             return {}
