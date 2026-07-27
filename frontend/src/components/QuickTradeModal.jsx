@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { X, Play, Clock } from 'lucide-react'
+import { X, Play, Clock, Activity } from 'lucide-react'
 import { strategyApi } from '../api/client'
+import useMarketStream from '../hooks/useMarketStream'
 
 export default function QuickTradeModal({ tradeDetails, onClose, onExecute }) {
   const navigate = useNavigate()
@@ -17,9 +18,15 @@ export default function QuickTradeModal({ tradeDetails, onClose, onExecute }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
-  const { strike, type, ltp, symbol, expiry, initialAction } = tradeDetails || {}
+  const { strike, type, ltp: initialLtp, symbol, expiry, initialAction, instrument_key } = tradeDetails || {}
 
-  // Update action when tradeDetails changes - MUST be called before any early return!
+  // Subscribe to live WebSocket feed for this option/stock
+  const rawKey = instrument_key ? instrument_key.replace(':', '|') : ''
+  const liveData = useMarketStream(rawKey ? [rawKey] : [])
+  const liveTick = rawKey ? liveData[rawKey] : null
+  const liveLtp = liveTick ? (liveTick.ltp ?? liveTick.last_price ?? initialLtp) : (initialLtp || 0)
+
+  // Update action when tradeDetails changes
   useEffect(() => {
     if (initialAction) {
       setAction(initialAction)
@@ -41,7 +48,7 @@ export default function QuickTradeModal({ tradeDetails, onClose, onExecute }) {
       side: action,
       qty: parseInt(lots),
       order_type: orderType,
-      limit_price: orderType === 'LIMIT' ? parseFloat(limitPrice) || 0 : 0,
+      limit_price: orderType === 'LIMIT' ? (parseFloat(limitPrice) || Number(liveLtp) || 0) : 0,
       sl_type: slType,
       sl_value: parseFloat(slValue) || 0,
       target_type: targetType,
@@ -98,12 +105,15 @@ export default function QuickTradeModal({ tradeDetails, onClose, onExecute }) {
           {error && <div className="error-banner">{error}</div>}
           
           <div className="stat-card" style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px' }}>
-            <div className="stat-header">
+            <div className="stat-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{symbol}</span>
+              <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--accent)', background: 'rgba(34, 197, 94, 0.12)', padding: '2px 8px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Activity size={12} className="pulse-icon" /> LIVE TICK
+              </span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}>
               <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800 }}>{type === 'EQ' ? 'EQUITY' : `${strike} ${type}`}</h2>
-              <span style={{ fontSize: '1.3rem', fontWeight: 'bold', color: 'var(--primary)' }}>₹{Number(ltp || 0).toFixed(2)}</span>
+              <span style={{ fontSize: '1.35rem', fontWeight: 'bold', color: 'var(--primary)' }}>₹{Number(liveLtp || 0).toFixed(2)}</span>
             </div>
           </div>
 
