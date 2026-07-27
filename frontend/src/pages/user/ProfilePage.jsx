@@ -21,6 +21,9 @@ export default function ProfilePage() {
     setTheme(newTheme)
     document.documentElement.setAttribute('data-theme', newTheme)
     localStorage.setItem('theme', newTheme)
+    if (typeof window !== 'undefined' && window.AndroidApp && typeof window.AndroidApp.updateTheme === 'function') {
+      window.AndroidApp.updateTheme(newTheme)
+    }
   }
 
   useEffect(() => {

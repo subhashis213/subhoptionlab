@@ -21,7 +21,7 @@ const BACKEND_API = getApiUrl()
 function Backtester() {
   const navigate = useNavigate()
   const [theme, setTheme] = useState(() => {
-    return localStorage.getItem('opti_theme') || 'dark'
+    return localStorage.getItem('theme') || 'dark'
   })
   const [activeTab, setActiveTab] = useState('builder')
   const [strategy, setStrategy] = useState({
@@ -49,7 +49,10 @@ function Backtester() {
   // Apply dark/light theme
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
-    localStorage.setItem('opti_theme', theme)
+    localStorage.setItem('theme', theme)
+    if (typeof window !== 'undefined' && window.AndroidApp && typeof window.AndroidApp.updateTheme === 'function') {
+      window.AndroidApp.updateTheme(theme)
+    }
   }, [theme])
 
   // Fetch data availability on mount
