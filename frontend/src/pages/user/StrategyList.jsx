@@ -114,20 +114,8 @@ export default function StrategyList() {
             >
               <div className="strategy-card-header">
                 <h4>{s.name}</h4>
-                <span className={`badge ${statusColors[s.status] || ''}`}>{s.status}</span>
-              </div>
-              <div className="strategy-card-body">
-                <span className="strategy-underlying">{s.underlying}</span>
-                <span className="strategy-legs">{s.open_legs || 0}/{s.total_legs || 0} legs</span>
-                <span className="strategy-date">
-                  {new Date(s.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
-                </span>
-              </div>
-              <div className="strategy-card-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div className={`strategy-pnl ${(s.total_pnl || 0) >= 0 ? 'positive' : 'negative'}`}>
-                  ₹{(s.total_pnl || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                </div>
-                <div style={{ display: 'flex', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span className={`badge ${statusColors[s.status] || ''}`}>{s.status}</span>
                   {s.status === 'active' ? (
                     <button 
                       className="btn-icon" 
@@ -147,6 +135,45 @@ export default function StrategyList() {
                       <Trash2 size={18} />
                     </button>
                   )}
+                </div>
+              </div>
+
+              <div className="strategy-card-body" style={{ marginBottom: '12px' }}>
+                <span className="strategy-underlying">{s.underlying}</span>
+                <span className="strategy-legs">{s.open_legs || 0}/{s.total_legs || 0} legs</span>
+                <span className="strategy-date">
+                  {new Date(s.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                </span>
+              </div>
+
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: '12px',
+                background: 'rgba(255, 255, 255, 0.03)',
+                border: '1px solid var(--border)',
+                borderRadius: '12px',
+                padding: '12px 14px'
+              }}>
+                <div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500, marginBottom: '2px' }}>Margin Used</div>
+                  <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text)' }}>
+                    ₹{Number(s.margin_used || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500, marginBottom: '2px' }}>Current Value</div>
+                  <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text)' }}>
+                    ₹{Number(s.current_value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                </div>
+
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500, marginBottom: '2px' }}>P&L</div>
+                  <div className={`strategy-pnl ${(s.total_pnl || 0) >= 0 ? 'positive' : 'negative'}`} style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0 }}>
+                    {(s.total_pnl || 0) >= 0 ? '+' : ''}₹{Number(s.total_pnl || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
                 </div>
               </div>
             </div>
