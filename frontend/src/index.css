@@ -2166,11 +2166,43 @@ input:focus {
 .modal {
   background: var(--bg-card, #1e293b) !important;
   border: 1px solid var(--border, #334155) !important;
-  border-radius: 16px !important;
+  border-radius: 20px !important;
   width: 100% !important;
   max-width: 440px !important;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6) !important;
   overflow: hidden !important;
   color: var(--text, #f8fafc) !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.modal-header {
+  padding: 20px 24px 16px 24px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  border-bottom: 1px solid var(--border, #334155) !important;
+}
+
+.modal-header h3 {
+  margin: 0 !important;
+  font-size: 1.25rem !important;
+  font-weight: 700 !important;
+  color: var(--text, #f8fafc) !important;
+}
+
+.modal-body {
+  padding: 24px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 16px !important;
+  max-height: 80vh !important;
+  overflow-y: auto !important;
+}
+
+.modal-footer {
+  padding: 16px 24px 24px 24px !important;
+  border-top: 1px solid var(--border, #334155) !important;
+  background: var(--bg-card, #1e293b) !important;
 }
 

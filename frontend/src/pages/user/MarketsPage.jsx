@@ -90,11 +90,8 @@ export default function MarketsPage() {
     if (q.length > 1) {
       setIsSearching(true)
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/pt/markets/stocks/search?q=${q}`)
-        if (res.ok) {
-          const data = await res.json()
-          setSearchResults(data)
-        }
+        const data = await marketsApi.searchStocks(q)
+        setSearchResults(data || [])
       } catch (err) {
         console.error(err)
       }
@@ -115,11 +112,8 @@ export default function MarketsPage() {
   const fetchTopStocks = async () => {
     try {
       setLoadingTopStocks(true)
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/pt/markets/top-stocks`)
-      if (res.ok) {
-        const data = await res.json()
-        setTopStocks(data)
-      }
+      const data = await marketsApi.topStocks()
+      setTopStocks(data || { gainers: [], losers: [] })
     } catch (err) {
       console.error('Error fetching top stocks', err)
     } finally {

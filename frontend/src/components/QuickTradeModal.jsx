@@ -87,40 +87,42 @@ export default function QuickTradeModal({ tradeDetails, onClose, onExecute }) {
   }
 
   return (
-    <div className="modal-backdrop" onClick={onClose} style={{ zIndex: 100 }}>
-      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px' }}>
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '440px' }}>
         <div className="modal-header">
           <h3>Quick Paper Trade</h3>
           <button className="btn-icon" onClick={onClose}><X size={20} /></button>
         </div>
         
         <div className="modal-body">
-          {error && <div className="error-banner" style={{ marginBottom: '16px' }}>{error}</div>}
+          {error && <div className="error-banner">{error}</div>}
           
-          <div className="stat-card" style={{ background: 'var(--bg)', marginBottom: '20px' }}>
+          <div className="stat-card" style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px' }}>
             <div className="stat-header">
-              <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>{symbol}</span>
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{symbol}</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-              <h2 style={{ margin: '8px 0 0' }}>{type === 'EQ' ? 'EQUITY' : `${strike} ${type}`}</h2>
-              <span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>₹{Number(ltp || 0).toFixed(2)}</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+              <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800 }}>{type === 'EQ' ? 'EQUITY' : `${strike} ${type}`}</h2>
+              <span style={{ fontSize: '1.3rem', fontWeight: 'bold', color: 'var(--primary)' }}>₹{Number(ltp || 0).toFixed(2)}</span>
             </div>
           </div>
 
           <div className="form-group">
-            <label>Order Type</label>
+            <label style={{ fontWeight: 600, marginBottom: '6px', display: 'block' }}>Order Type</label>
             <div className="toggle-group">
               <button 
+                type="button"
                 className={`toggle-option ${orderType === 'MARKET' ? 'active' : ''}`}
                 onClick={() => setOrderType('MARKET')}
-                style={{ padding: '8px' }}
+                style={{ padding: '10px' }}
               >
                 MARKET
               </button>
               <button 
+                type="button"
                 className={`toggle-option ${orderType === 'LIMIT' ? 'active' : ''}`}
                 onClick={() => setOrderType('LIMIT')}
-                style={{ padding: '8px' }}
+                style={{ padding: '10px' }}
               >
                 LIMIT
               </button>
@@ -129,7 +131,7 @@ export default function QuickTradeModal({ tradeDetails, onClose, onExecute }) {
 
           {orderType === 'LIMIT' && (
             <div className="form-group">
-              <label>Limit Price</label>
+              <label style={{ fontWeight: 600, marginBottom: '6px', display: 'block' }}>Limit Price</label>
               <input 
                 type="number" 
                 className="form-control" 
@@ -141,76 +143,78 @@ export default function QuickTradeModal({ tradeDetails, onClose, onExecute }) {
           )}
 
           <div className="form-group">
-            <label>Action</label>
+            <label style={{ fontWeight: 600, marginBottom: '6px', display: 'block' }}>Action</label>
             <div className="toggle-group">
               <button 
+                type="button"
                 className={`toggle-option buy ${action === 'BUY' ? 'active' : ''}`}
                 onClick={() => setAction('BUY')}
-                style={{ padding: '12px' }}
+                style={{ padding: '12px', fontWeight: 700 }}
               >
                 BUY
               </button>
               <button 
+                type="button"
                 className={`toggle-option sell ${action === 'SELL' ? 'active' : ''}`}
                 onClick={() => setAction('SELL')}
-                style={{ padding: '12px' }}
+                style={{ padding: '12px', fontWeight: 700 }}
               >
                 SELL
               </button>
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '16px' }}>
+          <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
             <div className="form-group" style={{ flex: 1 }}>
-              <label>{type === 'EQ' ? 'Quantity (Shares)' : 'Lots'}</label>
-              <div className="stepper" style={{ marginBottom: 0 }}>
+              <label style={{ fontWeight: 600, marginBottom: '6px', display: 'block' }}>{type === 'EQ' ? 'Quantity' : 'Lots'}</label>
+              <div className="stepper" style={{ marginBottom: 0, height: '42px' }}>
                 <button type="button" onClick={() => setLots(Math.max(1, lots - 1))}>-</button>
                 <input 
                   type="number" 
                   value={lots} 
                   onChange={(e) => setLots(Math.max(1, parseInt(e.target.value) || 1))}
-                  style={{ textAlign: 'center', background: 'transparent' }} 
+                  style={{ textAlign: 'center', background: 'transparent', height: '100%' }} 
                 />
                 <button type="button" onClick={() => setLots(lots + 1)}>+</button>
               </div>
             </div>
             
             <div className="form-group" style={{ flex: 1 }}>
-              <label>Auto-Trade Time</label>
+              <label style={{ fontWeight: 600, marginBottom: '6px', display: 'block' }}>Auto-Trade Time</label>
               <input 
                 type="time" 
                 className="form-control"
                 value={executionTime}
                 onChange={(e) => setExecutionTime(e.target.value)}
                 placeholder="Immediate"
-                style={{ padding: '8px', minHeight: '48px', height: '100%' }}
+                style={{ padding: '8px 12px', height: '42px', minHeight: '42px', width: '100%', borderRadius: '8px' }}
               />
             </div>
           </div>
-          <p className="field-hint" style={{ marginTop: '-8px', marginBottom: '16px' }}>Leave time empty for immediate Market execution.</p>
+          <p className="field-hint" style={{ marginTop: '-4px', marginBottom: '8px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Leave time empty for immediate Market execution.</p>
 
-          {/* Optional SL & Target */}
-          <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+          {/* SL & Target Inputs */}
+          <div style={{ display: 'flex', gap: '16px' }}>
             <div className="form-group" style={{ flex: 1, margin: 0 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                <label style={{ margin: 0, fontSize: '0.8rem' }}>Stop Loss</label>
-                <div className="toggle-group" style={{ margin: 0 }}>
-                  <button type="button" className={`toggle-option ${slType === 'points' ? 'active' : ''}`} onClick={() => setSlType('points')} style={{ padding: '1px 4px', fontSize: '0.7rem' }}>Pts</button>
-                  <button type="button" className={`toggle-option ${slType === 'percentage' ? 'active' : ''}`} onClick={() => setSlType('percentage')} style={{ padding: '1px 4px', fontSize: '0.7rem' }}>%</button>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <label style={{ margin: 0, fontSize: '0.85rem', fontWeight: 600 }}>Stop Loss</label>
+                <div className="toggle-group" style={{ margin: 0, display: 'flex' }}>
+                  <button type="button" className={`toggle-option ${slType === 'points' ? 'active' : ''}`} onClick={() => setSlType('points')} style={{ padding: '2px 6px', fontSize: '0.75rem' }}>Pts</button>
+                  <button type="button" className={`toggle-option ${slType === 'percentage' ? 'active' : ''}`} onClick={() => setSlType('percentage')} style={{ padding: '2px 6px', fontSize: '0.75rem' }}>%</button>
                 </div>
               </div>
-              <input type="number" className="form-control" placeholder="0" value={slValue} onChange={(e) => setSlValue(e.target.value)} style={{ padding: '6px' }} />
+              <input type="number" className="form-control" placeholder="0" value={slValue} onChange={(e) => setSlValue(e.target.value)} style={{ padding: '8px 12px', height: '40px' }} />
             </div>
 
             <div className="form-group" style={{ flex: 1, margin: 0 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                <label style={{ margin: 0, fontSize: '0.8rem' }}>Target</label>
-                <div className="toggle-group" style={{ margin: 0 }}>
-                  <button type="button" className={`toggle-option ${targetType === 'points' ? 'active' : ''}`} onClick={() => setTargetType('points')} style={{ padding: '1px 4px', fontSize: '0.7rem' }}>Pts</button>
-                  <button type="button" className={`toggle-option ${targetType === 'percentage' ? 'active' : ''}`} onClick={() => setTargetType('percentage')} style={{ padding: '1px 4px', fontSize: '0.7rem' }}>%</button>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <label style={{ margin: 0, fontSize: '0.85rem', fontWeight: 600 }}>Target</label>
+                <div className="toggle-group" style={{ margin: 0, display: 'flex' }}>
+                  <button type="button" className={`toggle-option ${targetType === 'points' ? 'active' : ''}`} onClick={() => setTargetType('points')} style={{ padding: '2px 6px', fontSize: '0.75rem' }}>Pts</button>
+                  <button type="button" className={`toggle-option ${targetType === 'percentage' ? 'active' : ''}`} onClick={() => setTargetType('percentage')} style={{ padding: '2px 6px', fontSize: '0.75rem' }}>%</button>
                 </div>
               </div>
-              <input type="number" className="form-control" placeholder="0" value={targetValue} onChange={(e) => setTargetValue(e.target.value)} style={{ padding: '6px' }} />
+              <input type="number" className="form-control" placeholder="0" value={targetValue} onChange={(e) => setTargetValue(e.target.value)} style={{ padding: '8px 12px', height: '40px' }} />
             </div>
           </div>
           
@@ -218,8 +222,22 @@ export default function QuickTradeModal({ tradeDetails, onClose, onExecute }) {
 
         <div className="modal-footer" style={{ display: 'flex', gap: '12px' }}>
           <button 
+            type="button"
             className="btn-primary" 
-            style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', background: action === 'BUY' ? 'var(--success)' : 'var(--danger)', borderColor: action === 'BUY' ? 'var(--success)' : 'var(--danger)' }}
+            style={{ 
+              width: '100%', 
+              height: '46px',
+              display: 'flex', 
+              alignItems: 'center', 
+              justify: 'center', 
+              gap: '8px', 
+              fontSize: '1rem',
+              fontWeight: 700,
+              background: action === 'BUY' ? 'var(--success)' : 'var(--danger)', 
+              borderColor: action === 'BUY' ? 'var(--success)' : 'var(--danger)',
+              borderRadius: '10px',
+              cursor: loading ? 'not-allowed' : 'pointer'
+            }}
             onClick={handleExecute}
             disabled={loading}
           >

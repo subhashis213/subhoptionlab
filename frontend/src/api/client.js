@@ -153,6 +153,8 @@ export const marketsApi = {
   expiries: (underlying) => apiFetch(`/api/pt/markets/expiries?underlying=${underlying}`),
   optionChain: (underlying, expiry) => 
     apiFetch(`/api/pt/markets/option-chain?underlying=${underlying}&expiry=${expiry}`),
+  topStocks: () => apiFetch('/api/pt/markets/top-stocks'),
+  searchStocks: (q) => apiFetch(`/api/pt/markets/stocks/search?q=${encodeURIComponent(q)}`),
 }
 
 export function connectWebSocket(token, onMessage) {
