@@ -147,7 +147,7 @@ export default function QuickTradeModal({ tradeDetails, onClose, onExecute }) {
                 className="form-control" 
                 value={limitPrice} 
                 onChange={(e) => setLimitPrice(e.target.value)}
-                placeholder={`e.g. ${(Number(ltp || 0) * 0.95).toFixed(2)}`}
+                placeholder={`e.g. ${(Number(liveLtp || 0) * 0.95).toFixed(2)}`}
               />
             </div>
           )}
