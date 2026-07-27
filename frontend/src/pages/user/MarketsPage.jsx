@@ -43,8 +43,8 @@ export default function MarketsPage() {
     // Add option chain keys
     if (optionChain.length > 0) {
       optionChain.forEach(row => {
-        if (row.call_options?.instrument_key) keys.push(row.call_options.instrument_key)
-        if (row.put_options?.instrument_key) keys.push(row.put_options.instrument_key)
+        if (row.call_options?.instrument_key) keys.push(row.call_options.instrument_key.replace(':', '|'))
+        if (row.put_options?.instrument_key) keys.push(row.put_options.instrument_key.replace(':', '|'))
       })
     }
     
@@ -397,8 +397,10 @@ export default function MarketsPage() {
                     const isPutITM = spotPrice > 0 && row.strike_price > spotPrice;
                     const isATM = row.strike_price === atmStrike;
                     
-                    const ceKey = row.call_options?.instrument_key
-                    const peKey = row.put_options?.instrument_key
+                    const rawCeKey = row.call_options?.instrument_key || '';
+                    const rawPeKey = row.put_options?.instrument_key || '';
+                    const ceKey = rawCeKey.replace(':', '|');
+                    const peKey = rawPeKey.replace(':', '|');
                     
                     // New flat format: liveData[key].ltp — with old fallbacks
                     const ceLive = ceKey ? liveData[ceKey] : null

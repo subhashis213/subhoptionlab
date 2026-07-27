@@ -542,6 +542,20 @@ async def live_market_websocket(websocket: WS):
     finally:
         live_feed_hub.unregister_client(q)
 
+@app.get("/api/debug/live-feed")
+async def debug_live_feed():
+    from papertrade.live_feed_hub import live_feed_hub
+    from papertrade.upstox_guard import _get_access_token
+    token = await _get_access_token()
+    return {
+        "connected": live_feed_hub.connected,
+        "active_keys_count": len(live_feed_hub.active_keys),
+        "active_keys": list(live_feed_hub.active_keys)[:10],
+        "client_queues_count": len(live_feed_hub.client_queues),
+        "poll_task_active": live_feed_hub._poll_task is not None and not live_feed_hub._poll_task.done(),
+        "has_token": bool(token),
+    }
+
 
 if __name__ == "__main__":
     import uvicorn
