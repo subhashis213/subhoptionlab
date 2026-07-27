@@ -195,14 +195,20 @@ async def fetch_quotes(instrument_keys: List[str]) -> Dict[str, dict]:
         return _generate_paper_fallback_quotes(instrument_keys)
 
     try:
-        instruments_str = ",".join(instrument_keys)
-        url = f"{UPSTOX_BASE_URL}/v2/market-quote/quotes"
+        # Normalize all keys to pipe format and deduplicate
+        # (Upstox needs pipe format: NSE_FO|61599, not colon NSE_FO:61599)
+        normalized_keys = list({k.replace(":", "|"): None for k in instrument_keys}.keys())
+        
+        # CRITICAL: Pass instrument_key directly in the URL, not via params dict.
+        # The requests library URL-encodes pipe (|) to %7C in params, which Upstox rejects.
+        instruments_str = ",".join(normalized_keys)
+        url = f"{UPSTOX_BASE_URL}/v2/market-quote/quotes?instrument_key={instruments_str}"
         headers = _make_headers(token)
 
         loop = asyncio.get_event_loop()
         response = await loop.run_in_executor(
             None,
-            lambda: requests.get(url, params={"instrument_key": instruments_str}, headers=headers, timeout=1.5)
+            lambda: requests.get(url, headers=headers, timeout=3.0)
         )
 
         if response.status_code == 200:

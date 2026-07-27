@@ -71,25 +71,36 @@ async def get_indices(user: dict = Depends(require_user)):
 async def get_top_stocks():
     """Fetch Top Gainers and Losers across all F&O Stocks."""
     from data.stock_registry import TOP_FO_STOCKS
-    keys = [f"NSE_EQ|{s['symbol']}" for s in TOP_FO_STOCKS]
+    
+    # Build safe keys — skip symbols with special chars like M&M that break URL params
+    safe_stocks = [s for s in TOP_FO_STOCKS if "&" not in s["symbol"] and " " not in s["symbol"]]
+    keys = [f"NSE_EQ|{s['symbol']}" for s in safe_stocks]
+    
+    results = []
     try:
-        live_quotes = await fetch_quotes(keys)
-        results = []
-        for stock in TOP_FO_STOCKS:
+        # Batch in chunks of 50 to avoid URL length issues
+        batch_size = 50
+        live_quotes = {}
+        for i in range(0, len(keys), batch_size):
+            batch_quotes = await fetch_quotes(keys[i:i+batch_size])
+            live_quotes.update(batch_quotes)
+        
+        for stock in safe_stocks:
             key = f"NSE_EQ|{stock['symbol']}"
-            quote = live_quotes.get(key)
+            # Try pipe and colon variants
+            quote = live_quotes.get(key) or live_quotes.get(key.replace("|", ":"))
             if not quote:
                 continue
             ltp = float(quote.get("last_price", 0.0))
+            if ltp <= 0:
+                continue
             change = float(quote.get("net_change", 0.0))
             change_percent = 0.0
-            
-            if "net_change" in quote:
-                ohlc = quote.get("ohlc", {})
-                close_price = float(ohlc.get("close", 0.0))
-                if close_price > 0:
-                    change_percent = round((change / close_price) * 100, 2)
-                    
+            ohlc = quote.get("ohlc", {})
+            close_price = float(ohlc.get("close", 0.0))
+            if close_price > 0:
+                change_percent = round((change / close_price) * 100, 2)
+                
             results.append({
                 "symbol": stock["symbol"],
                 "name": stock["name"],
@@ -102,11 +113,11 @@ async def get_top_stocks():
         results.sort(key=lambda x: x["change_percent"], reverse=True)
         return {
             "gainers": results[:10],
-            "losers": results[-10:][::-1]
+            "losers": list(reversed(results))[:10]
         }
     except Exception as e:
         logger.error(f"Error fetching top stocks: {e}")
-        raise HTTPException(status_code=500, detail="Failed to fetch top stocks")
+        return {"gainers": [], "losers": []}
 
 
 @router.get("/option-chain")
