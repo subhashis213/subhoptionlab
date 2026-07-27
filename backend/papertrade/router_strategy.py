@@ -139,33 +139,38 @@ async def list_strategies(
         current_value = 0.0
 
         for leg in legs:
-            entry = float(leg.get("entry_price", 0))
-            current = float(leg.get("current_ltp", entry))
+            entry = float(leg.get("entry_price") or 0.0)
+            current = float(leg.get("current_ltp") or 0.0)
+            limit_p = float(leg.get("limit_price") or 0.0)
+            exit_p = float(leg.get("exit_price") or 0.0)
+
             if leg.get("option_type") == "EQ":
                 lot_size = 1
             else:
                 lot_size = get_lot_size(leg.get("symbol", "NIFTY"))
             total_qty = leg.get("qty", 1) * lot_size
 
-            leg_invested = entry * total_qty
+            # Fallback to limit_price or current_ltp if entry_price is not yet set
+            eff_entry = entry if entry > 0 else (limit_p if limit_p > 0 else current)
+            eff_current = current if current > 0 else (eff_entry if eff_entry > 0 else 0.0)
+
+            leg_invested = eff_entry * total_qty
             margin_used += leg_invested
 
             if leg.get("current_status") in ("sl_hit", "target_hit", "manually_closed"):
-                # Use realized P&L
-                exit_p = float(leg.get("exit_price", entry))
-                leg_val = exit_p * total_qty
+                eff_exit = exit_p if exit_p > 0 else eff_entry
+                leg_val = eff_exit * total_qty
                 if leg.get("side") == "BUY":
-                    total_pnl += (exit_p - entry) * total_qty
+                    total_pnl += (eff_exit - eff_entry) * total_qty
                 else:
-                    total_pnl += (entry - exit_p) * total_qty
+                    total_pnl += (eff_entry - eff_exit) * total_qty
                 current_value += leg_val
-            elif leg.get("current_status") == "open" and entry > 0:
-                # Unrealized P&L
-                leg_val = current * total_qty
+            elif leg.get("current_status") == "open":
+                leg_val = eff_current * total_qty
                 if leg.get("side") == "BUY":
-                    total_pnl += (current - entry) * total_qty
+                    total_pnl += (eff_current - eff_entry) * total_qty
                 else:
-                    total_pnl += (entry - current) * total_qty
+                    total_pnl += (eff_entry - eff_current) * total_qty
                 current_value += leg_val
             else:
                 current_value += leg_invested
@@ -204,32 +209,38 @@ async def get_strategy(strategy_id: str, user: dict = Depends(require_user)):
     current_value = 0.0
 
     for leg in legs:
-        entry = float(leg.get("entry_price", 0))
-        current = float(leg.get("current_ltp", entry))
+        entry = float(leg.get("entry_price") or 0.0)
+        current = float(leg.get("current_ltp") or 0.0)
+        limit_p = float(leg.get("limit_price") or 0.0)
+        exit_p = float(leg.get("exit_price") or 0.0)
+
         if leg.get("option_type") == "EQ":
             lot_size = 1
         else:
             lot_size = get_lot_size(leg.get("symbol", "NIFTY"))
         total_qty = leg.get("qty", 1) * lot_size
 
-        leg_invested = entry * total_qty
+        eff_entry = entry if entry > 0 else (limit_p if limit_p > 0 else current)
+        eff_current = current if current > 0 else (eff_entry if eff_entry > 0 else 0.0)
+
+        leg_invested = eff_entry * total_qty
         margin_used += leg_invested
 
         if leg.get("current_status") in ("sl_hit", "target_hit", "manually_closed"):
-            exit_p = float(leg.get("exit_price", entry))
-            leg_val = exit_p * total_qty
+            eff_exit = exit_p if exit_p > 0 else eff_entry
+            leg_val = eff_exit * total_qty
             if leg.get("side") == "BUY":
-                leg["realized_pnl"] = round((exit_p - entry) * total_qty, 2)
+                leg["realized_pnl"] = round((eff_exit - eff_entry) * total_qty, 2)
             else:
-                leg["realized_pnl"] = round((entry - exit_p) * total_qty, 2)
+                leg["realized_pnl"] = round((eff_entry - eff_exit) * total_qty, 2)
             total_pnl += leg["realized_pnl"]
             current_value += leg_val
-        elif leg.get("current_status") == "open" and entry > 0:
-            leg_val = current * total_qty
+        elif leg.get("current_status") == "open":
+            leg_val = eff_current * total_qty
             if leg.get("side") == "BUY":
-                leg["unrealized_pnl"] = round((current - entry) * total_qty, 2)
+                leg["unrealized_pnl"] = round((eff_current - eff_entry) * total_qty, 2)
             else:
-                leg["unrealized_pnl"] = round((entry - current) * total_qty, 2)
+                leg["unrealized_pnl"] = round((eff_entry - eff_current) * total_qty, 2)
             total_pnl += leg.get("unrealized_pnl", 0)
             current_value += leg_val
         else:

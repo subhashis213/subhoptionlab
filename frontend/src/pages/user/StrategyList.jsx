@@ -106,78 +106,93 @@ export default function StrategyList() {
         </div>
       ) : (
         <div className="strategy-cards">
-          {strategies.map((s) => (
-            <div
-              key={s._id}
-              className="strategy-card"
-              onClick={() => navigate(`/strategies/${s._id}`)}
-            >
-              <div className="strategy-card-header">
-                <h4>{s.name}</h4>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span className={`badge ${statusColors[s.status] || ''}`}>{s.status}</span>
-                  {s.status === 'active' ? (
-                    <button 
-                      className="btn-icon" 
-                      onClick={(e) => handleClose(e, s._id)}
-                      style={{ background: 'transparent', padding: '4px', minHeight: 'auto', color: 'var(--loss)' }}
-                      title="Close Strategy"
-                    >
-                      <Power size={18} />
-                    </button>
-                  ) : (
-                    <button 
-                      className="btn-icon text-muted" 
-                      onClick={(e) => handleDelete(e, s._id, s.status)}
-                      style={{ background: 'transparent', padding: '4px', minHeight: 'auto' }}
-                      title="Delete Strategy"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  )}
-                </div>
-              </div>
+          {strategies.map((s) => {
+            const marginUsed = (s.margin_used && s.margin_used > 0) ? s.margin_used : (
+              (s.legs && s.legs.length > 0)
+                ? s.legs.reduce((acc, leg) => {
+                    const lotSize = leg.symbol === 'BANKNIFTY' ? 15 : (leg.symbol === 'NIFTY' ? 25 : (leg.symbol === 'FINNIFTY' ? 25 : (leg.symbol === 'MIDCAPNIFTY' ? 50 : 1)))
+                    const price = Number(leg.entry_price || leg.limit_price || leg.current_ltp || 0)
+                    return acc + (price * (leg.qty || 1) * lotSize)
+                  }, 0)
+                : 0
+            )
 
-              <div className="strategy-card-body" style={{ marginBottom: '12px' }}>
-                <span className="strategy-underlying">{s.underlying}</span>
-                <span className="strategy-legs">{s.open_legs || 0}/{s.total_legs || 0} legs</span>
-                <span className="strategy-date">
-                  {new Date(s.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
-                </span>
-              </div>
+            const pnl = Number(s.total_pnl || 0)
+            const currentValue = (s.current_value && s.current_value > 0) ? s.current_value : (marginUsed + pnl)
 
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(3, 1fr)',
-                gap: '12px',
-                background: 'rgba(255, 255, 255, 0.03)',
-                border: '1px solid var(--border)',
-                borderRadius: '12px',
-                padding: '12px 14px'
-              }}>
-                <div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500, marginBottom: '2px' }}>Margin Used</div>
-                  <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text)' }}>
-                    ₹{Number(s.margin_used || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            return (
+              <div
+                key={s._id}
+                className="strategy-card"
+                onClick={() => navigate(`/strategies/${s._id}`)}
+              >
+                <div className="strategy-card-header">
+                  <h4>{s.name}</h4>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span className={`badge ${statusColors[s.status] || ''}`}>{s.status}</span>
+                    {s.status === 'active' ? (
+                      <button 
+                        className="btn-icon" 
+                        onClick={(e) => handleClose(e, s._id)}
+                        style={{ background: 'transparent', padding: '4px', minHeight: 'auto', color: 'var(--loss)' }}
+                        title="Close Strategy"
+                      >
+                        <Power size={18} />
+                      </button>
+                    ) : (
+                      <button 
+                        className="btn-icon text-muted" 
+                        onClick={(e) => handleDelete(e, s._id, s.status)}
+                        style={{ background: 'transparent', padding: '4px', minHeight: 'auto' }}
+                        title="Delete Strategy"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    )}
                   </div>
                 </div>
 
-                <div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500, marginBottom: '2px' }}>Current Value</div>
-                  <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text)' }}>
-                    ₹{Number(s.current_value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </div>
+                <div className="strategy-card-body" style={{ marginBottom: '12px' }}>
+                  <span className="strategy-underlying">{s.underlying}</span>
+                  <span className="strategy-legs">{s.open_legs || 0}/{s.total_legs || 0} legs</span>
+                  <span className="strategy-date">
+                    {new Date(s.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                  </span>
                 </div>
 
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500, marginBottom: '2px' }}>P&L</div>
-                  <div className={`strategy-pnl ${(s.total_pnl || 0) >= 0 ? 'positive' : 'negative'}`} style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0 }}>
-                    {(s.total_pnl || 0) >= 0 ? '+' : ''}₹{Number(s.total_pnl || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(3, 1fr)',
+                  gap: '12px',
+                  background: 'rgba(255, 255, 255, 0.03)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '12px',
+                  padding: '12px 14px'
+                }}>
+                  <div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500, marginBottom: '2px' }}>Margin Used</div>
+                    <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text)' }}>
+                      ₹{Number(marginUsed).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500, marginBottom: '2px' }}>Current Value</div>
+                    <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text)' }}>
+                      ₹{Number(currentValue).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                  </div>
+
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500, marginBottom: '2px' }}>P&L</div>
+                    <div className={`strategy-pnl ${pnl >= 0 ? 'positive' : 'negative'}`} style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0 }}>
+                      {pnl >= 0 ? '+' : ''}₹{Number(pnl).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>
