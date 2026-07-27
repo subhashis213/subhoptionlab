@@ -107,6 +107,7 @@ async def get_login_url(
     broker: str = "upstox"
 ):
     """Generate the 1-Click OAuth login URL for Upstox."""
+    from urllib.parse import quote
     user_id = "default_user"
     cred = await db.broker_credentials_collection.find_one({"user_id": user_id, "broker": broker})
     
@@ -119,9 +120,15 @@ async def get_login_url(
         
     if not api_key:
         raise HTTPException(status_code=400, detail="API Key not configured. Please save your API Key first.")
-        
-    url = f"https://api.upstox.com/v2/login/authorization/dialog?response_type=code&client_id={api_key}&redirect_uri={redirect_uri}"
-    return {"status": "success", "login_url": url, "api_key": api_key}
+    
+    # Use the redirect_uri that was saved when API keys were configured, or fall back to the one from request
+    if cred and cred.get("redirect_uri"):
+        redirect_uri = cred["redirect_uri"]
+    
+    # CRITICAL: URL-encode the redirect_uri so it is correctly embedded in the OAuth URL
+    encoded_redirect = quote(redirect_uri, safe='')
+    url = f"https://api.upstox.com/v2/login/authorization/dialog?response_type=code&client_id={api_key}&redirect_uri={encoded_redirect}"
+    return {"status": "success", "login_url": url, "api_key": api_key, "redirect_uri": redirect_uri}
 
 
 @router.post("/callback")
