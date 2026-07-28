@@ -106,78 +106,14 @@ async def create_strategy(req: StrategyCreate, user: dict = Depends(require_user
 
 # ── Helper Functions ────────────────────────────────────────────────────────────
 
-def calc_strategy_metrics(legs: list) -> tuple[float, float, float]:
+async def calc_strategy_metrics(legs: list) -> tuple[float, float, float]:
     """
-    Calculate (margin_used, current_value, total_pnl) for strategy legs.
-    Following NSE Option Margin Rules:
-    - Long Options (BUY): Margin = Entry Price * Total Qty (Premium Paid)
-    - Short Options (SELL): Blocked Margin = ₹1,00,000 per lot (Naked Sell) or ₹35,000 per lot (Hedged Spread)
+    Calculate (margin_used, current_value, total_pnl) for strategy legs using
+    the Upstox Live Margin API (when token available) or realistic SPAN approximation engine.
     """
     if not legs:
         return 0.0, 0.0, 0.0
-
-    has_buy = any(l.get("side") == "BUY" and l.get("option_type") != "EQ" for l in legs)
-    has_sell = any(l.get("side") == "SELL" and l.get("option_type") != "EQ" for l in legs)
-    is_hedged = has_buy and has_sell
-
-    margin_used = 0.0
-    current_value = 0.0
-    total_pnl = 0.0
-
-    for leg in legs:
-        entry = float(leg.get("entry_price") or 0.0)
-        current = float(leg.get("current_ltp") or 0.0)
-        limit_p = float(leg.get("limit_price") or 0.0)
-        exit_p = float(leg.get("exit_price") or 0.0)
-
-        underlying = leg.get("symbol", "NIFTY")
-        if leg.get("option_type") == "EQ":
-            lot_size = 1
-        else:
-            lot_size = get_lot_size(underlying)
-
-        qty_lots = leg.get("qty", 1)
-        total_qty = qty_lots * lot_size
-
-        eff_entry = entry if entry > 0 else (limit_p if limit_p > 0 else current)
-        eff_current = current if current > 0 else (eff_entry if eff_entry > 0 else 0.0)
-
-        # Margin Calculation
-        if leg.get("option_type") == "EQ" or leg.get("side") == "BUY":
-            leg_margin = eff_entry * total_qty
-        else:
-            per_lot = 35000.0 if is_hedged else 100000.0
-            leg_margin = per_lot * qty_lots
-
-        margin_used += leg_margin
-
-        # Status & P&L
-        status = leg.get("current_status")
-        if status in ("sl_hit", "target_hit", "manually_closed"):
-            eff_exit = exit_p if exit_p > 0 else eff_entry
-            if leg.get("side") == "BUY":
-                pnl = (eff_exit - eff_entry) * total_qty
-                val = eff_exit * total_qty
-            else:
-                pnl = (eff_entry - eff_exit) * total_qty
-                val = leg_margin + pnl
-
-            total_pnl += pnl
-            current_value += val
-        elif status in ("open", "active", "pending_entry"):
-            if leg.get("side") == "BUY":
-                pnl = (eff_current - eff_entry) * total_qty
-                val = eff_current * total_qty
-            else:
-                pnl = (eff_entry - eff_current) * total_qty
-                val = leg_margin + pnl
-
-            total_pnl += pnl
-            current_value += val
-        else:
-            current_value += leg_margin
-
-    return round(margin_used, 2), round(current_value, 2), round(total_pnl, 2)
+    return await compute_portfolio_margin(legs)
 
 
 # ── List Strategies ────────────────────────────────────────────────────────────
@@ -211,7 +147,7 @@ async def list_strategies(
         legs_cursor = db.strategy_legs_collection.find({"strategy_id": s["_id"]})
         legs = await legs_cursor.to_list(length=20)
 
-        margin_used, current_value, total_pnl = calc_strategy_metrics(legs)
+        margin_used, current_value, total_pnl = await calc_strategy_metrics(legs)
 
         result.append({
             **s,
@@ -241,7 +177,7 @@ async def get_strategy(strategy_id: str, user: dict = Depends(require_user)):
     legs_cursor = db.strategy_legs_collection.find({"strategy_id": strategy_id})
     legs = await legs_cursor.to_list(length=20)
 
-    margin_used, current_value, total_pnl = calc_strategy_metrics(legs)
+    margin_used, current_value, total_pnl = await calc_strategy_metrics(legs)
 
     return {
         **strategy,
@@ -355,24 +291,8 @@ async def activate_strategy(strategy_id: str, user: dict = Depends(require_user)
     instrument_keys = [leg["instrument_key"] for leg in legs if leg.get("instrument_key")]
     ltp_data = await fetch_ltp(instrument_keys) if instrument_keys else {}
 
-    # Calculate Margin required
-    total_margin = 0.0
-    for leg in legs:
-        inst_key = leg.get("instrument_key", "")
-        ltp = ltp_data.get(inst_key)
-        if ltp is None or ltp <= 0:
-            ltp = 0.0
-        qty_lots = leg.get("qty", 1)
-        if leg.get("option_type") == "EQ":
-            lot_size = 1
-        else:
-            lot_size = get_lot_size(leg.get("symbol", strategy.get("underlying")))
-        total_qty = qty_lots * lot_size
-        
-        if leg["side"] == "BUY":
-            total_margin += ltp * total_qty
-        else:
-            total_margin += 150000 * qty_lots
+    # Calculate Margin required (unified with wallet display engine)
+    total_margin, _, _ = await compute_portfolio_margin(legs)
 
     # Check Wallet Balance
     wallet = await db.wallets_collection.find_one({"user_id": user["_id"]})

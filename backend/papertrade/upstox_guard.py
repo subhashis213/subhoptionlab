@@ -481,7 +481,70 @@ async def resolve_instrument_keys(legs: list) -> None:
             else:
                 leg["instrument_key"] = build_instrument_key(symbol, expiry, strike_float, option_type)
         except (ValueError, TypeError):
-            pass# ══════════════════════════════════════════════════════════════════════════════
+            pass
+
+
+async def fetch_upstox_margin(legs: List[Dict[str, Any]]) -> Optional[float]:
+    """
+    Fetch exact SPAN + Exposure margin from Upstox API (/v2/charges/margin).
+    Read-only margin query for paper trading verification.
+    """
+    if not legs:
+        return 0.0
+
+    token = await _get_access_token()
+    if not token:
+        return None
+
+    instruments = []
+    from data.stock_registry import get_lot_size
+    for leg in legs:
+        inst_key = leg.get("instrument_key")
+        if not inst_key:
+            continue
+        side = str(leg.get("side", "BUY")).upper()
+        qty_lots = int(leg.get("qty", 1))
+        symbol = leg.get("symbol", "NIFTY")
+        lot_size = 1 if leg.get("option_type") == "EQ" else get_lot_size(symbol)
+        total_qty = qty_lots * lot_size
+        instruments.append({
+            "instrument_key": inst_key,
+            "quantity": total_qty,
+            "transaction_type": side,
+            "product": "D"
+        })
+
+    if not instruments:
+        return None
+
+    try:
+        url = f"{UPSTOX_BASE_URL}/v2/charges/margin"
+        headers = {
+            "Accept": "application/json",
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        }
+        payload = {"instruments": instruments}
+
+        loop = asyncio.get_event_loop()
+        response = await loop.run_in_executor(
+            None,
+            lambda: requests.post(url, headers=headers, json=payload, timeout=3)
+        )
+
+        if response.status_code == 200:
+            res_data = response.json().get("data", {})
+            req_margin = res_data.get("required_margin") or res_data.get("final_margin")
+            if req_margin is not None:
+                return float(req_margin)
+        elif response.status_code == 401:
+            await _invalidate_token()
+    except Exception as e:
+        logger.debug(f"Error fetching margin from Upstox API: {e}")
+
+    return None
+
+# ══════════════════════════════════════════════════════════════════════════════
 # STRUCTURAL SAFETY ASSERTION
 # ══════════════════════════════════════════════════════════════════════════════
 # The following assertion runs at module import time to verify that no order

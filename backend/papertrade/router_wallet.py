@@ -41,7 +41,7 @@ async def get_wallet(user: dict = Depends(require_user)):
         for s in active_strats:
             legs_cursor = db.strategy_legs_collection.find({"strategy_id": s["_id"]})
             legs = await legs_cursor.to_list(length=50)
-            strat_margin, _, strat_pnl = calc_strategy_metrics(legs)
+            strat_margin, _, strat_pnl = await calc_strategy_metrics(legs)
             used_margin += strat_margin
             unrealized_pnl += strat_pnl
 
