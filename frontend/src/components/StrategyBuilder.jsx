@@ -128,9 +128,20 @@ export default function StrategyBuilder({ strategy, setStrategy }) {
                 <select value={leg.action} onChange={e => updateLeg(i, 'action', e.target.value)}>
                   {ACTIONS.map(a => <option key={a} value={a}>{a}</option>)}
                 </select>
-                <select value={leg.strike_selection} onChange={e => updateLeg(i, 'strike_selection', e.target.value)}>
-                  {STRIKE_SELECTIONS.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
+                <div style={{position: 'relative', display: 'flex', alignItems: 'center'}}>
+                  <input
+                    type="text"
+                    list={`strike-options-${i}`}
+                    value={leg.strike_selection}
+                    onChange={e => updateLeg(i, 'strike_selection', e.target.value)}
+                    placeholder="e.g. ATM, 48000"
+                    className="input-narrow"
+                    style={{width: '90px'}}
+                  />
+                  <datalist id={`strike-options-${i}`}>
+                    {STRIKE_SELECTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+                  </datalist>
+                </div>
                 <input
                   type="number"
                   min="1"

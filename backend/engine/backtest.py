@@ -187,6 +187,34 @@ def _process_trading_day(
             continue
 
         leg_results.append(leg_result)
+
+    # Re-run logic for move_sl_to_cost
+    if getattr(config, "move_sl_to_cost_on_leg_sl_hit", False) and leg_results:
+        sl_hit_minutes = [l.exit_time_idx for l in leg_results if l.exit_reason == "leg_sl_hit" and l.exit_time_idx is not None]
+        if sl_hit_minutes:
+            earliest_sl_minute = min(sl_hit_minutes)
+            
+            new_leg_results = []
+            for original_res, leg_config in zip(leg_results, config.legs):
+                if original_res.exit_reason == "leg_sl_hit" and original_res.exit_time_idx == earliest_sl_minute:
+                    # Keep the one that triggered the SL
+                    new_leg_results.append(original_res)
+                else:
+                    # Re-run the other legs with force_sl_to_cost_at_idx
+                    rerun_res = _process_leg(
+                        leg_config, atm_strike, expiry, trade_date,
+                        symbol, lot_size, parquet_dir,
+                        entry_time=config.entry_time,
+                        exit_time=config.exit_time,
+                        force_sl_to_cost_at_idx=earliest_sl_minute,
+                    )
+                    if rerun_res:
+                        new_leg_results.append(rerun_res)
+            
+            leg_results = new_leg_results
+
+    # Aggregate PNL after potential re-runs
+    for leg_result in leg_results:
         total_pnl_points += leg_result.pnl_points * leg_result.lots
         total_pnl_value += leg_result.pnl_value
 
@@ -235,6 +263,7 @@ def _process_leg(
     parquet_dir: Path | None,
     entry_time: str = "09:56:00",
     exit_time: str = "14:50:00",
+    force_sl_to_cost_at_idx: int | None = None,
 ) -> LegResult | None:
     """Process a single leg of the strategy for one day using minute-level intraday evaluation when configured."""
 
@@ -264,6 +293,7 @@ def _process_leg(
             symbol, lot_size, price_data,
             entry_time_str=entry_time,
             exit_time_str=exit_time,
+            force_sl_to_cost_at_idx=force_sl_to_cost_at_idx,
         )
         if intraday_res is not None:
             return intraday_res
@@ -304,4 +334,5 @@ def _process_leg(
         lot_size=lot_size,
         pnl_value=pnl_value,
         exit_reason=exit_reason,
+        exit_time_idx=374,  # Daily exit assumed to be EOD
     )

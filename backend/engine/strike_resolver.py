@@ -54,11 +54,15 @@ def resolve_strike(
     if selection == "ATM":
         return atm_strike
 
+    # Support absolute numeric strike values (e.g., "45000")
+    if selection.isdigit():
+        return int(selection)
+
     match = re.match(r"^(ITM|OTM)[- ]?(\d+)$", selection)
     if not match:
         raise ValueError(
             f"Invalid strike selection: '{selection}'. "
-            "Expected 'ATM', 'ITM-n', or 'OTM-n'."
+            "Expected 'ATM', 'ITM-n', 'OTM-n', or an absolute number (e.g. '45000')."
         )
 
     direction = match.group(1)  # ITM or OTM

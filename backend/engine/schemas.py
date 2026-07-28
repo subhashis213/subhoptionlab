@@ -139,6 +139,10 @@ class StrategyConfig(BaseModel):
         default=TradeMode.INTRADAY,
         description="'intraday' = exit same day, 'positional' = carry overnight",
     )
+    move_sl_to_cost_on_leg_sl_hit: bool = Field(
+        default=False,
+        description="If one leg hits SL, move all other legs' SL to their entry price",
+    )
 
 
 class BacktestRequest(BaseModel):
@@ -164,6 +168,10 @@ class LegResult(BaseModel):
     lot_size: int
     pnl_value: float  # pnl_points * lots * lot_size
     exit_reason: str
+    exit_time_idx: Optional[int] = Field(
+        default=None,
+        description="Minute index (0 to 374) when this leg exited",
+    )
 
 
 class DailyResult(BaseModel):

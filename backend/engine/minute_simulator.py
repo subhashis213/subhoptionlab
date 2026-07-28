@@ -189,6 +189,7 @@ def simulate_intraday_leg(
     price_data: dict,
     entry_time_str: str = "09:56:00",
     exit_time_str: str = "14:50:00",
+    force_sl_to_cost_at_idx: Optional[int] = None,
 ) -> LegResult | None:
     """
     Simulate a single option leg using minute-by-minute progression from entry_time to exit_time.
@@ -231,15 +232,21 @@ def simulate_intraday_leg(
     # Step minute-by-minute from start_idx + 1 to end_idx
     exit_price = bars[end_idx]
     exit_reason = "time_exit"
+    exit_time_idx = end_idx
 
     for i in range(start_idx + 1, end_idx + 1):
         p = bars[i]
         
+        # Move SL to cost if triggered by another leg
+        if force_sl_to_cost_at_idx is not None and i >= force_sl_to_cost_at_idx:
+            sl_price = entry_price
+
         # Evaluate rules using shared tick evaluator
         triggered_reason = evaluate_leg_rules_tick(p, action, sl_price, target_price)
         if triggered_reason:
             exit_price = sl_price if triggered_reason == "leg_sl_hit" else target_price
             exit_reason = triggered_reason
+            exit_time_idx = i
             break
 
     # Calculate P&L
@@ -261,4 +268,5 @@ def simulate_intraday_leg(
         lot_size=lot_size,
         pnl_value=pnl_value,
         exit_reason=exit_reason,
+        exit_time_idx=exit_time_idx,
     )
