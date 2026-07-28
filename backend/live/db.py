@@ -66,7 +66,13 @@ async def connect_to_mongo():
     kwargs = {
         "serverSelectionTimeoutMS": 15000,
     }
-    if "mongodb+srv://" in MONGODB_URI or "tls=true" in MONGODB_URI.lower() or "ssl=true" in MONGODB_URI.lower():
+    
+    # Always use TLS for remote databases (non-localhost)
+    is_local = "localhost" in MONGODB_URI or "127.0.0.1" in MONGODB_URI
+    if not is_local:
+        kwargs["tls"] = True
+        kwargs["tlsCAFile"] = certifi.where()
+    elif "tls=true" in MONGODB_URI.lower() or "ssl=true" in MONGODB_URI.lower():
         kwargs["tlsCAFile"] = certifi.where()
 
     client = AsyncIOMotorClient(MONGODB_URI, **kwargs)

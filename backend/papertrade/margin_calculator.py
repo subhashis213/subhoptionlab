@@ -114,13 +114,15 @@ async def compute_portfolio_margin(
     if spot_prices is None:
         spot_prices = {}
 
-    # Attempt Upstox Live Margin API call
+    # Disable Upstox Live Margin API call during normal dashboard loads to prevent 
+    # Vercel 10s timeouts and Upstox 429 rate limits.
+    # The SPAN approximation engine below is highly accurate.
     upstox_margin = None
-    try:
-        from papertrade.upstox_guard import fetch_upstox_margin
-        upstox_margin = await fetch_upstox_margin(legs)
-    except Exception as e:
-        logger.debug(f"Upstox margin API call skipped/failed: {e}")
+    # try:
+    #     from papertrade.upstox_guard import fetch_upstox_margin
+    #     upstox_margin = await fetch_upstox_margin(legs)
+    # except Exception as e:
+    #     logger.debug(f"Upstox margin API call skipped/failed: {e}")
 
     # Categorize legs for hedge analysis
     buy_legs = [l for l in legs if l.get("side") == "BUY" and l.get("option_type") in ("CE", "PE")]
