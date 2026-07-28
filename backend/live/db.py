@@ -63,11 +63,13 @@ async def connect_to_mongo():
     global wallet_collection
 
     logger.info(f"Initializing MongoDB connection (DB: {DB_NAME})...")
-    client = AsyncIOMotorClient(
-        MONGODB_URI, 
-        serverSelectionTimeoutMS=15000,
-        tlsCAFile=certifi.where()
-    )
+    kwargs = {
+        "serverSelectionTimeoutMS": 15000,
+    }
+    if "mongodb+srv://" in MONGODB_URI or "tls=true" in MONGODB_URI.lower() or "ssl=true" in MONGODB_URI.lower():
+        kwargs["tlsCAFile"] = certifi.where()
+
+    client = AsyncIOMotorClient(MONGODB_URI, **kwargs)
     db = client[DB_NAME]
     
     # Initialize live trading collections immediately so they are never None
