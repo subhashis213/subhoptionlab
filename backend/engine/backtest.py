@@ -221,15 +221,30 @@ def _process_trading_day(
     if not leg_results:
         return None
 
-    # Determine descriptive day exit reason based on which legs hit SL/TP vs time exit
-    sl_legs = [l.option_type for l in leg_results if l.exit_reason == "leg_sl_hit"]
-    tp_legs = [l.option_type for l in leg_results if l.exit_reason == "leg_target_hit"]
+    sl_legs = []
+    cost_legs = []
+    tp_legs = []
+    
+    for l in leg_results:
+        if l.exit_reason == "leg_sl_hit":
+            sl_legs.append(l.option_type)
+        elif l.exit_reason == "leg_sl_to_cost_hit":
+            cost_legs.append(l.option_type)
+        elif l.exit_reason == "leg_target_hit":
+            tp_legs.append(l.option_type)
 
-    if len(sl_legs) > 1:
+    if sl_legs and cost_legs:
+        day_exit_reason = f"{' & '.join(sl_legs)} SL HIT, {' & '.join(cost_legs)} SL->COST"
+    elif len(sl_legs) > 1:
         day_exit_reason = f"{' & '.join(sl_legs)} SL HIT (DOUBLE SL)"
+    elif len(cost_legs) > 1:
+        day_exit_reason = f"{' & '.join(cost_legs)} SL->COST (DOUBLE COST EXIT)"
     elif len(sl_legs) == 1:
         other_reason = "Time Exit" if not tp_legs else f"{tp_legs[0]} Target Hit"
         day_exit_reason = f"{sl_legs[0]} SL HIT ({other_reason})"
+    elif len(cost_legs) == 1:
+        other_reason = "Time Exit" if not tp_legs else f"{tp_legs[0]} Target Hit"
+        day_exit_reason = f"{cost_legs[0]} SL->COST ({other_reason})"
     elif len(tp_legs) > 0:
         day_exit_reason = f"{' & '.join(tp_legs)} TARGET HIT"
     else:

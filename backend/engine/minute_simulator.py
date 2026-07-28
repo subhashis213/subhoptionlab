@@ -244,8 +244,12 @@ def simulate_intraday_leg(
         # Evaluate rules using shared tick evaluator
         triggered_reason = evaluate_leg_rules_tick(p, action, sl_price, target_price)
         if triggered_reason:
+            if triggered_reason == "leg_sl_hit" and sl_price == entry_price:
+                exit_reason = "leg_sl_to_cost_hit"
+            else:
+                exit_reason = triggered_reason
+                
             exit_price = sl_price if triggered_reason == "leg_sl_hit" else target_price
-            exit_reason = triggered_reason
             exit_time_idx = i
             break
 

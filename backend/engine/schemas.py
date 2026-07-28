@@ -37,6 +37,7 @@ class TradeMode(str, Enum):
 class ExitReason(str, Enum):
     TIME_EXIT = "time_exit"
     LEG_SL_HIT = "leg_sl_hit"
+    LEG_SL_TO_COST_HIT = "leg_sl_to_cost_hit"
     LEG_TARGET_HIT = "leg_target_hit"
     STRATEGY_SL_HIT = "strategy_sl_hit"
     STRATEGY_TARGET_HIT = "strategy_target_hit"
