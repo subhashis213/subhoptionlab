@@ -13,7 +13,7 @@ a runtime flag, but by the complete absence of that code path.
 import os
 import logging
 import asyncio
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 import requests
 from dotenv import load_dotenv
 import yfinance as yf
