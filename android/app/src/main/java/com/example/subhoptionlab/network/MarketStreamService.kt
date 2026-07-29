@@ -41,7 +41,7 @@ class MarketStreamService private constructor() {
         if (webSocket != null) return
 
         val request = Request.Builder()
-            .url("wss://subhoptionlab.onrender.com/ws/live-market")
+            .url("wss://subhoptionlab-7r1l.onrender.com/ws/live-market")
             .build()
 
         webSocket = client.newWebSocket(request, object : WebSocketListener() {

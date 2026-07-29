@@ -160,8 +160,18 @@ export default function MarketsPage() {
           setAvailableExpiries(data)
           setExpiry(data[0]) 
         } else {
-          setAvailableExpiries(['2026-07-28', '2026-08-25'])
-          setExpiry('2026-07-28')
+          // Dynamic Fallback
+          const d = new Date()
+          const day = d.getDay()
+          const diff = ((4 - day + 7) % 7) || 7
+          d.setDate(d.getDate() + diff)
+          const nextThurs = d.toISOString().split('T')[0]
+          
+          d.setDate(d.getDate() + 28)
+          const nextMonth = d.toISOString().split('T')[0]
+          
+          setAvailableExpiries([nextThurs, nextMonth])
+          setExpiry(nextThurs)
         }
       } catch (err) {
         console.error('Failed to fetch expiries', err)

@@ -48,7 +48,7 @@ class MarketApiClient {
         .build()
 
     private val gson = Gson()
-    private val baseUrl = "https://subhoptionlab.onrender.com"
+    private val baseUrl = "https://subhoptionlab-7r1l.onrender.com"
 
     suspend fun getIndices(): List<IndexItem> = withContext(Dispatchers.IO) {
         val request = Request.Builder().url("$baseUrl/api/pt/markets/indices").build()
@@ -72,8 +72,8 @@ class MarketApiClient {
     suspend fun getExpiries(symbol: String): List<String> = withContext(Dispatchers.IO) {
         val request = Request.Builder().url("$baseUrl/api/pt/markets/expiries?underlying=$symbol").build()
         client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) return@withContext listOf("2026-07-28")
-            val json = response.body?.string() ?: return@withContext listOf("2026-07-28")
+            if (!response.isSuccessful) return@withContext emptyList()
+            val json = response.body?.string() ?: return@withContext emptyList()
             val type = object : TypeToken<List<String>>() {}.type
             gson.fromJson(json, type)
         }

@@ -166,11 +166,21 @@ async def get_valid_expiries(underlying: str):
         if stocks and stocks[0]["symbol"] == underlying.upper():
             instrument_key = f"NSE_EQ|{underlying}" # Needs actual ISIN or FO key but we can try 
             
+    from datetime import date, timedelta
+    def get_fallback_expiries():
+        today = date.today()
+        days_ahead = 3 - today.weekday()
+        if days_ahead <= 0:
+            days_ahead += 7
+        next_thursday = today + timedelta(days_ahead)
+        next_month = next_thursday + timedelta(days=28)
+        return [next_thursday.strftime("%Y-%m-%d"), next_month.strftime("%Y-%m-%d")]
+
     from .upstox_guard import _get_access_token
     token = await _get_access_token()
     if not token:
-        return ["2026-07-28", "2026-08-25"] # Fallback
-    
+        return get_fallback_expiries()
+
     try:
         from .upstox_guard import fetch_option_chain
         expiries = set()
@@ -186,4 +196,4 @@ async def get_valid_expiries(underlying: str):
     except Exception as e:
         logger.error(f"Error fetching expiries from keywords: {e}")
         
-    return ["2026-07-28", "2026-08-25"] # Fallback
+    return get_fallback_expiries()
