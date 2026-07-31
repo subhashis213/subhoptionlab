@@ -18,7 +18,7 @@ class MainActivity : ComponentActivity() {
     setContent {
       SubhOptionLabTheme { 
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) { 
-          com.example.subhoptionlab.ui.AppWebView() 
+          com.example.subhoptionlab.ui.AppNativeContainer() 
         } 
       }
     }

@@ -189,7 +189,7 @@ def _process_trading_day(
         leg_results.append(leg_result)
 
     # Re-run logic for move_sl_to_cost
-    if getattr(config, "move_sl_to_cost_on_leg_sl_hit", False) and leg_results:
+    if getattr(config, "move_sl_to_cost", False) and leg_results:
         sl_hit_minutes = [l.exit_time_idx for l in leg_results if l.exit_reason == "leg_sl_hit" and l.exit_time_idx is not None]
         if sl_hit_minutes:
             earliest_sl_minute = min(sl_hit_minutes)

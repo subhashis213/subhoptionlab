@@ -25,6 +25,9 @@ export default function StrategyBuilder() {
     move_sl_to_cost: false,
     entry_time: '',
     exit_time: '',
+    webhook_enabled: false,
+    accepted_timeframes: [],
+    ladder_multiplier: 0.5,
     legs: [],
   })
   const [showAddLeg, setShowAddLeg] = useState(false)
@@ -202,6 +205,77 @@ export default function StrategyBuilder() {
               />
             </div>
           </div>
+
+          <hr style={{ margin: '24px 0', borderColor: '#333' }} />
+
+          <h3>TradingView Integration</h3>
+          <p className="step-desc" style={{ marginBottom: '16px' }}>
+            Execute trades automatically from TradingView indicator webhooks.
+          </p>
+
+          <div className="form-group toggle-row">
+            <div>
+              <label>Enable Webhook Auto-Execution</label>
+              <p className="field-hint">
+                Allow incoming signals to instantly trigger paper trades.
+              </p>
+            </div>
+            <button
+              className="toggle-btn"
+              onClick={() => setStrategy({ ...strategy, webhook_enabled: !strategy.webhook_enabled })}
+            >
+              {strategy.webhook_enabled ?
+                <ToggleRight size={32} className="toggle-on" /> :
+                <ToggleLeft size={32} className="toggle-off" />
+              }
+            </button>
+          </div>
+
+          {strategy.webhook_enabled && (
+            <div style={{ background: '#1e1e1e', padding: '16px', borderRadius: '8px', marginBottom: '24px' }}>
+              <div className="form-group">
+                <label>Accepted Timeframes</label>
+                <p className="field-hint" style={{ marginBottom: '8px' }}>Select which chart timeframes are allowed to trigger trades.</p>
+                <div className="chip-group">
+                  {['1', '3', '5', '15', '30', '60', '1D'].map((tf) => {
+                    const isActive = strategy.accepted_timeframes.includes(tf)
+                    return (
+                      <button
+                        key={tf}
+                        className={`chip ${isActive ? 'active' : ''}`}
+                        onClick={() => {
+                          const newTfs = isActive
+                            ? strategy.accepted_timeframes.filter(t => t !== tf)
+                            : [...strategy.accepted_timeframes, tf]
+                          setStrategy({ ...strategy, accepted_timeframes: newTfs })
+                        }}
+                      >
+                        {tf === '60' ? '1h' : (tf === '1D' ? '1D' : `${tf}m`)}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Options Ladder Multiplier</label>
+                <p className="field-hint">
+                  Scales the Index Risk (R) to Option Premium Risk. e.g. If Index SL is 50pts away and multiplier is 0.5, Option SL will be 25pts away from entry premium.
+                </p>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0.1"
+                  max="2.0"
+                  value={strategy.ladder_multiplier}
+                  onChange={(e) => setStrategy({ ...strategy, ladder_multiplier: parseFloat(e.target.value) || 0.5 })}
+                  className="input-large"
+                />
+              </div>
+            </div>
+          )}
+
+          <hr style={{ margin: '24px 0', borderColor: '#333' }} />
 
           <div className="form-group">
             <label>Underlying Index</label>

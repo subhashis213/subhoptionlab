@@ -185,8 +185,8 @@ export default function BacktestConfig({ strategy, setStrategy, config, setConfi
         <label className="checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginTop: '5px' }}>
           <input
             type="checkbox"
-            checked={strategy.move_sl_to_cost_on_leg_sl_hit || false}
-            onChange={e => setStrategy({ ...strategy, move_sl_to_cost_on_leg_sl_hit: e.target.checked })}
+            checked={strategy.move_sl_to_cost || false}
+            onChange={e => setStrategy({ ...strategy, move_sl_to_cost: e.target.checked })}
           />
           Move SL to Cost (If one leg hits SL)
         </label>

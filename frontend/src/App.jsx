@@ -50,6 +50,7 @@ import ProfilePage from './pages/user/ProfilePage'
 import TradeHistoryPage from './pages/user/TradeHistoryPage'
 import MarketsPage from './pages/user/MarketsPage'
 import BrokerIntegrationPage from './pages/user/BrokerIntegrationPage'
+import WebhookLogs from './pages/user/WebhookLogs'
 
 import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminUsers from './pages/admin/AdminUsers'
@@ -87,6 +88,7 @@ export default function App() {
         <Route element={<ProtectedRoute requiredRole="user" />}>
           <Route path="/strategies/new" element={<StrategyBuilder />} />
           <Route path="/strategies/:id" element={<StrategyDetail />} />
+          <Route path="/strategies/:id/webhook-logs" element={<WebhookLogs />} />
           <Route path="/trade-history" element={<TradeHistoryPage />} />
           <Route path="/backtester" element={<Backtester />} />
           <Route path="/broker-integration" element={<BrokerIntegrationPage />} />

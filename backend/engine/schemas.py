@@ -140,7 +140,7 @@ class StrategyConfig(BaseModel):
         default=TradeMode.INTRADAY,
         description="'intraday' = exit same day, 'positional' = carry overnight",
     )
-    move_sl_to_cost_on_leg_sl_hit: bool = Field(
+    move_sl_to_cost: bool = Field(
         default=False,
         description="If one leg hits SL, move all other legs' SL to their entry price",
     )

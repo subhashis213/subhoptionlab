@@ -52,12 +52,16 @@ export async function apiFetch(path, options = {}) {
       ...options,
       headers,
     }
+    let finalPath = path
     // Prevent browser caching for GET requests
     if (!options.method || options.method.toUpperCase() === 'GET') {
       fetchOptions.cache = 'no-store'
+      // Add explicit cache-buster query param for aggressive Android WebViews
+      const separator = finalPath.includes('?') ? '&' : '?'
+      finalPath = `${finalPath}${separator}_t=${Date.now()}`
     }
 
-    response = await fetch(`${API_BASE}${path}`, fetchOptions)
+    response = await fetch(`${API_BASE}${finalPath}`, fetchOptions)
   } catch (netErr) {
     throw new Error('Network error: Server is starting up or unreachable. Please try again in a few seconds.')
   }

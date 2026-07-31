@@ -57,7 +57,7 @@ function Backtester() {
 
   // Fetch data availability on mount
   useEffect(() => {
-    fetch(`${BACKEND_API}/data/stats`)
+    fetch(`${BACKEND_API}/data/stats?_t=${Date.now()}`)
       .then(r => r.json())
       .then(info => {
         setDataInfo(info)

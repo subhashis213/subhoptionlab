@@ -49,6 +49,7 @@ fun AppWebView(url: String = "https://subhoptionlab.vercel.app") {
                         databaseEnabled = true
                         useWideViewPort = true
                         loadWithOverviewMode = true
+                        cacheMode = WebSettings.LOAD_NO_CACHE
                         setSupportMultipleWindows(true)
                         javaScriptCanOpenWindowsAutomatically = true
                         mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW

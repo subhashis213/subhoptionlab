@@ -16,6 +16,7 @@ chip_transactions_collection = None
 strategies_collection = None
 strategy_legs_collection = None
 trade_history_collection = None
+webhook_logs_collection = None
 
 
 async def init_papertrade_collections(db: AsyncIOMotorDatabase):
@@ -23,8 +24,8 @@ async def init_papertrade_collections(db: AsyncIOMotorDatabase):
     Initialize all paper trading collections and create indexes.
     Called from the main app startup after MongoDB connection is established.
     """
-    global users_collection, wallets_collection, chip_transactions_collection
     global strategies_collection, strategy_legs_collection, trade_history_collection
+    global webhook_logs_collection
 
     users_collection = db["pt_users"]
     wallets_collection = db["pt_wallets"]
@@ -32,6 +33,7 @@ async def init_papertrade_collections(db: AsyncIOMotorDatabase):
     strategies_collection = db["pt_strategies"]
     strategy_legs_collection = db["pt_strategy_legs"]
     trade_history_collection = db["pt_trade_history"]
+    webhook_logs_collection = db["pt_webhook_logs"]
 
     # Create indexes
     await users_collection.create_index("email", unique=True)
