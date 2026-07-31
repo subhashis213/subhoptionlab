@@ -3,6 +3,8 @@ Markets API for Live Dashboards — Paper Trading Only.
 Provides endpoints for fetching index spot prices and option chains.
 """
 
+from typing import Optional, List
+from datetime import date, timedelta
 from fastapi import APIRouter, HTTPException, Depends
 from papertrade.auth import require_user
 from papertrade.upstox_guard import fetch_ltp, fetch_quotes, fetch_option_chain
@@ -10,6 +12,15 @@ import logging
 from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
+
+def get_fallback_expiries():
+    today = date.today()
+    days_ahead = 3 - today.weekday()
+    if days_ahead <= 0:
+        days_ahead += 7
+    next_thursday = today + timedelta(days_ahead)
+    next_month = next_thursday + timedelta(days=28)
+    return [next_thursday.strftime("%Y-%m-%d"), next_month.strftime("%Y-%m-%d")]
 
 router = APIRouter(prefix="/api/pt/markets", tags=["markets"])
 
@@ -167,14 +178,7 @@ async def get_valid_expiries(underlying: str):
             instrument_key = f"NSE_EQ|{underlying}" # Needs actual ISIN or FO key but we can try 
             
     from datetime import date, timedelta
-    def get_fallback_expiries():
-        today = date.today()
-        days_ahead = 3 - today.weekday()
-        if days_ahead <= 0:
-            days_ahead += 7
-        next_thursday = today + timedelta(days_ahead)
-        next_month = next_thursday + timedelta(days=28)
-        return [next_thursday.strftime("%Y-%m-%d"), next_month.strftime("%Y-%m-%d")]
+    from papertrade.router_markets import get_fallback_expiries
 
     from .upstox_guard import _get_access_token
     token = await _get_access_token()
