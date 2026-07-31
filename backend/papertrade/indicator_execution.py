@@ -7,12 +7,11 @@ from papertrade.upstox_guard import fetch_quotes, build_instrument_key
 from papertrade.router_markets import get_fallback_expiries
 from data.stock_registry import get_lot_size
 from papertrade.margin_calculator import compute_portfolio_margin
-from papertrade.router_webhook import TradingViewPayload
 from data.queries import resolve_atm_strike
 
 logger = logging.getLogger(__name__)
 
-async def process_webhook_signal(strategy: dict, payload: TradingViewPayload, log_id: str):
+async def process_webhook_signal(strategy: dict, payload, log_id: str):
     """
     Background task to execute a TradingView signal.
     """
