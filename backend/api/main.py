@@ -462,14 +462,12 @@ from papertrade.router_strategy import router as pt_strategy_router
 from papertrade.router_wallet import router as pt_wallet_router
 from papertrade.router_history import router as pt_history_router
 from papertrade.router_markets import router as pt_markets_router
-from papertrade.router_webhook import router as pt_webhook_router
 app.include_router(pt_auth_router)
 app.include_router(pt_admin_router)
 app.include_router(pt_strategy_router)
 app.include_router(pt_wallet_router)
 app.include_router(pt_history_router)
 app.include_router(pt_markets_router)
-app.include_router(pt_webhook_router)
 
 
 # ── Paper Trading WebSocket Endpoint ───────────────────────────────────────────

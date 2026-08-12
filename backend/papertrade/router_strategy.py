@@ -42,10 +42,6 @@ async def create_strategy(req: StrategyCreate, user: dict = Depends(require_user
         "status": "pending" if req.entry_time else "draft",
         "entry_time": req.entry_time[:5] if req.entry_time else None,
         "exit_time": req.exit_time[:5] if req.exit_time else None,
-        "webhook_enabled": req.webhook_enabled,
-        "webhook_secret": req.webhook_secret or (str(uuid.uuid4()) if req.webhook_enabled else None),
-        "accepted_timeframes": req.accepted_timeframes,
-        "ladder_multiplier": req.ladder_multiplier,
         "created_at": datetime.utcnow(),
         "closed_at": None,
     }

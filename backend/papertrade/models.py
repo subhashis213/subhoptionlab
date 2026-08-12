@@ -137,12 +137,6 @@ class StrategyCreate(BaseModel):
     entry_time: Optional[str] = None  # HH:MM format
     exit_time: Optional[str] = None   # HH:MM format
     legs: List[LegCreate] = Field(..., min_length=1)
-    
-    # Webhook fields
-    webhook_enabled: bool = False
-    webhook_secret: Optional[str] = None
-    accepted_timeframes: List[str] = []
-    ladder_multiplier: float = 0.5
 
 
 class StrategyLegInDB(BaseModel):
@@ -185,30 +179,6 @@ class StrategyInDB(BaseModel):
     exit_time: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     closed_at: Optional[datetime] = None
-    
-    webhook_enabled: bool = False
-    webhook_secret: Optional[str] = None
-    accepted_timeframes: List[str] = []
-    ladder_multiplier: float = 0.5
-
-    model_config = {"populate_by_name": True}
-
-
-class WebhookLogInDB(BaseModel):
-    """Log for incoming TradingView webhooks."""
-    id: str = Field(default_factory=_gen_id, alias="_id")
-    strategy_id: str
-    user_id: str
-    symbol: str
-    timeframe: str
-    action: str
-    entry_price: float
-    sl_price: Optional[float] = None
-    signal_time: str
-    status: Literal["EXECUTED", "REJECTED", "LOGGED_ONLY", "FAILED"]
-    reason: Optional[str] = None
-    raw_payload: dict
-    created_at: datetime = Field(default_factory=datetime.utcnow)
 
     model_config = {"populate_by_name": True}
 
@@ -225,12 +195,6 @@ class StrategyResponse(BaseModel):
     exit_time: Optional[str] = None
     created_at: datetime
     closed_at: Optional[datetime] = None
-    
-    webhook_enabled: bool = False
-    webhook_secret: Optional[str] = None
-    accepted_timeframes: List[str] = []
-    ladder_multiplier: float = 0.5
-    
     legs: List[dict] = []
     total_unrealized_pnl: float = 0.0
 
