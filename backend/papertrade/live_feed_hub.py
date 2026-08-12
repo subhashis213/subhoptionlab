@@ -176,16 +176,22 @@ class LiveFeedHub:
             return
             
         # CRITICAL FIX: Upstox WebSocket completely rejects the ENTIRE batch if any key is invalid.
-        # String aliases like "NSE_FO|BANKNIFTY26AUG2557200CE" are invalid for the WS SDK.
-        # Options/Futures keys (NSE_FO| / BSE_FO|) MUST be strictly numeric (e.g., "NSE_FO|61599").
-        valid_keys = []
+        # It also ONLY accepts pipe '|' format, not colons ':'. 
+        valid_keys = set()
         for k in keys:
-            if k.startswith("NSE_FO|") or k.startswith("BSE_FO|"):
-                token_part = k.split("|")[1]
-                if token_part.isdigit():
-                    valid_keys.append(k)
-            else:
-                valid_keys.append(k)
+            norm = k.replace(":", "|")
+            if "|" not in norm:
+                continue
+                
+            prefix, token = norm.split("|", 1)
+            
+            if prefix in ("NSE_FO", "BSE_FO", "MCX_FO"):
+                if not token.isdigit():
+                    continue
+                    
+            valid_keys.add(norm)
+            
+        valid_keys = list(valid_keys)
                 
         if not valid_keys:
             return
@@ -392,15 +398,20 @@ class LiveFeedHub:
                         self.active_keys.remove(k)
                         
         if keys_to_unsubscribe and self.connected and self.streamer:
-            valid_keys = []
+            valid_keys = set()
             for k in keys_to_unsubscribe:
-                if k.startswith("NSE_FO|") or k.startswith("BSE_FO|"):
-                    token_part = k.split("|")[1]
-                    if token_part.isdigit():
-                        valid_keys.append(k)
-                else:
-                    valid_keys.append(k)
+                norm = k.replace(":", "|")
+                if "|" not in norm:
+                    continue
                     
+                prefix, token = norm.split("|", 1)
+                if prefix in ("NSE_FO", "BSE_FO", "MCX_FO"):
+                    if not token.isdigit():
+                        continue
+                        
+                valid_keys.add(norm)
+                
+            valid_keys = list(valid_keys)
             if valid_keys:
                 logger.info(f"LiveFeedHub unsubscribing from Upstox: {valid_keys}")
                 self.streamer.unsubscribe(valid_keys)
