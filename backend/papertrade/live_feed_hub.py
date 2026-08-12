@@ -175,9 +175,24 @@ class LiveFeedHub:
         if not keys or not self.streamer or not self.connected:
             return
             
+        # CRITICAL FIX: Upstox WebSocket completely rejects the ENTIRE batch if any key is invalid.
+        # String aliases like "NSE_FO|BANKNIFTY26AUG2557200CE" are invalid for the WS SDK.
+        # Options/Futures keys (NSE_FO| / BSE_FO|) MUST be strictly numeric (e.g., "NSE_FO|61599").
+        valid_keys = []
+        for k in keys:
+            if k.startswith("NSE_FO|") or k.startswith("BSE_FO|"):
+                token_part = k.split("|")[1]
+                if token_part.isdigit():
+                    valid_keys.append(k)
+            else:
+                valid_keys.append(k)
+                
+        if not valid_keys:
+            return
+
         chunk_size = 100
-        for i in range(0, len(keys), chunk_size):
-            chunk = keys[i:i + chunk_size]
+        for i in range(0, len(valid_keys), chunk_size):
+            chunk = valid_keys[i:i + chunk_size]
             try:
                 self.streamer.subscribe(chunk, mode="full")
                 logger.info(f"LiveFeedHub subscribed to chunk of {len(chunk)} keys.")
@@ -377,8 +392,18 @@ class LiveFeedHub:
                         self.active_keys.remove(k)
                         
         if keys_to_unsubscribe and self.connected and self.streamer:
-            logger.info(f"LiveFeedHub unsubscribing from Upstox: {keys_to_unsubscribe}")
-            self.streamer.unsubscribe(keys_to_unsubscribe)
+            valid_keys = []
+            for k in keys_to_unsubscribe:
+                if k.startswith("NSE_FO|") or k.startswith("BSE_FO|"):
+                    token_part = k.split("|")[1]
+                    if token_part.isdigit():
+                        valid_keys.append(k)
+                else:
+                    valid_keys.append(k)
+                    
+            if valid_keys:
+                logger.info(f"LiveFeedHub unsubscribing from Upstox: {valid_keys}")
+                self.streamer.unsubscribe(valid_keys)
             
     def register_client(self) -> asyncio.Queue:
         q = asyncio.Queue(maxsize=1000)
